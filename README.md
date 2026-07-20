@@ -110,6 +110,11 @@ Full details: [`docs/DOCUMENTATION_TECHNIQUE.md`](docs/DOCUMENTATION_TECHNIQUE.m
 
 ## Import questions
 
+### Modèle Excel (inclus dans le dépôt)
+
+- Fichier : [`docs/excel/examinator_question_bank_template.xlsx`](docs/excel/examinator_question_bank_template.xlsx)
+- Guide d’alimentation : [`docs/excel/ALIMENTATION_QUESTIONS.md`](docs/excel/ALIMENTATION_QUESTIONS.md)
+
 ### Excel (admin UI)
 
 Administration → **Importer** → choose target exam → upload `.xlsx`.

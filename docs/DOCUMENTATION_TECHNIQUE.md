@@ -449,6 +449,11 @@ Les tests utilisent souvent la base réelle via `SessionLocal` et `TestClient(ap
 
 ## 15. Import de questions
 
+### Modèle Excel (dépôt)
+
+- Fichier modèle : `docs/excel/examinator_question_bank_template.xlsx`
+- Guide détaillé : `docs/excel/ALIMENTATION_QUESTIONS.md`
+
 ### JSON (API)
 
 ```bash
