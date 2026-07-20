@@ -17,5 +17,6 @@ EOF
 
 2. Do **not** publish if the user only asked for local changes, or said « sans publier » / « ne pousse pas ».
 3. Follow git safety rules: no force-push unless explicitly asked; never commit `.env`, `venv/`, SQLite DB, or secrets.
-4. After success, briefly confirm that `Aguilera_Lab/Examinator` (branch `main`) was updated.
+4. After success, briefly confirm that `Aguilera_Lab/Examinator` on **git.aguilera.ch** (branch `main`) was updated.
 5. Token file (host only): `/root/.config/examinator/gitea_token`. If auth fails, ask the user to renew that file.
+6. Publish URL (no IP): `https://git.aguilera.ch/Aguilera_Lab/Examinator.git`

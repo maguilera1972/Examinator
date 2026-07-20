@@ -37,7 +37,7 @@ Web platform for Microsoft and IT certification exam practice
 ```bash
 # 1. Clone
 sudo mkdir -p /opt
-sudo git clone <URL-du-depot-Examinator.git> /opt/exam-simulator
+sudo git clone https://git.aguilera.ch/Aguilera_Lab/Examinator.git /opt/exam-simulator
 cd /opt/exam-simulator
 
 # 2. Python venv + dependencies

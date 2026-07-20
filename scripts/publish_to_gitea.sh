@@ -7,10 +7,11 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
 TOKEN_FILE="${EXAMINATOR_GITEA_TOKEN_FILE:-/root/.config/examinator/gitea_token}"
-GITEA_HOST="${EXAMINATOR_GITEA_HOST:-172.16.12.12:3000}"
+GITEA_HOST="${EXAMINATOR_GITEA_HOST:-git.aguilera.ch}"
 GITEA_OWNER="${EXAMINATOR_GITEA_OWNER:-Aguilera_Lab}"
 GITEA_REPO="${EXAMINATOR_GITEA_REPO:-Examinator}"
 GITEA_USER="${EXAMINATOR_GITEA_USER:-Michel}"
+GITEA_SCHEME="${EXAMINATOR_GITEA_SCHEME:-https}"
 
 if [[ ! -f "$TOKEN_FILE" ]]; then
   echo "Missing token file: $TOKEN_FILE" >&2
@@ -30,8 +31,8 @@ if [[ ! -d .git ]]; then
 fi
 
 # Default remote without credentials
-CLEAN_URL="http://${GITEA_HOST}/${GITEA_OWNER}/${GITEA_REPO}.git"
-AUTH_URL="http://${GITEA_USER}:${TOKEN}@${GITEA_HOST}/${GITEA_OWNER}/${GITEA_REPO}.git"
+CLEAN_URL="${GITEA_SCHEME}://${GITEA_HOST}/${GITEA_OWNER}/${GITEA_REPO}.git"
+AUTH_URL="${GITEA_SCHEME}://${GITEA_USER}:${TOKEN}@${GITEA_HOST}/${GITEA_OWNER}/${GITEA_REPO}.git"
 
 if ! git remote get-url origin >/dev/null 2>&1; then
   git remote add origin "$CLEAN_URL"
