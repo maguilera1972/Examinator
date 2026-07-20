@@ -1,14 +1,13 @@
 # Publish workflow (Gitea)
 
-When you finish implementing requested changes to the Examinator software under `/opt/exam-simulator` (code, templates, static assets, docs, scripts, tests):
+When the user asks for Examinator software changes **and** asks to update the repository
+(phrases such as « publie », « pousse sur gitea », « mets à jour le dépôt », « sync repo »,
+« et publie », « publie aussi »), after finishing the code changes:
 
-1. **Publish to Gitea by default** after the work is done, unless the user explicitly says not to (e.g. « sans publier », « ne pousse pas », « keep local only »).
-2. Also publish immediately when the user asks with phrases like « publie », « pousse sur gitea », « mets à jour le dépôt », « sync repo ».
-3. Use the helper script (reads the local token; never put the token in commits, chat, or remotes permanently):
+1. Commit and push with the helper (token stays local; never commit it):
 
 ```bash
 cd /opt/exam-simulator
-chmod +x scripts/publish_to_gitea.sh
 ./scripts/publish_to_gitea.sh "$(cat <<'EOF'
 Concise commit message describing why the change was made.
 
@@ -16,6 +15,7 @@ EOF
 )"
 ```
 
-4. Follow the existing git safety rules: never update git config globally; do not commit `.env`, `venv/`, SQLite DB, or secrets; do not force-push unless the user explicitly asks.
-5. After a successful publish, briefly tell the user that the Gitea repo was updated (branch `main` on `Aguilera_Lab/Examinator`).
-6. Token file path (local only): `/root/.config/examinator/gitea_token`. If push fails due to auth, ask the user to renew the token there — do not invent credentials.
+2. Do **not** publish if the user only asked for local changes, or said « sans publier » / « ne pousse pas ».
+3. Follow git safety rules: no force-push unless explicitly asked; never commit `.env`, `venv/`, SQLite DB, or secrets.
+4. After success, briefly confirm that `Aguilera_Lab/Examinator` (branch `main`) was updated.
+5. Token file (host only): `/root/.config/examinator/gitea_token`. If auth fails, ask the user to renew that file.
