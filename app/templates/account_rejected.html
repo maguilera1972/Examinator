@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Acces refuse — Examinator{% endblock %}
+{% block content %}
+<div class="container">
+  <div class="form-card">
+    <h1 style="margin-bottom:0.5rem;font-size:1.5rem;">Acces non autorise</h1>
+    <p style="color:var(--muted);margin-bottom:1.5rem;">
+      Votre demande d acces pour <strong>{{ user.email }}</strong> a ete refusee.
+      Contactez l administrateur si vous pensez qu il s agit d une erreur.
+    </p>
+    <form action="/logout" method="post">
+      <button type="submit" class="btn btn-ghost btn-block">Se deconnecter</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

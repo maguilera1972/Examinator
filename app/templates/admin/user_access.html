@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Acces simulateurs — {{ target_user.first_name }} — Examinator{% endblock %}
+{% block content %}
+<div class="container" style="padding:2rem 1.5rem 3rem;">
+  <a href="/admin" style="color:var(--muted);font-size:0.9rem;">← Administration</a>
+  <p style="margin:0.75rem 0 0;">
+    <a href="/admin/users/{{ target_user.id }}/results" class="btn btn-secondary btn-sm">Voir les résultats &amp; exports PDF</a>
+  </p>
+  <h1 style="margin-top:1rem;">Acces simulateurs</h1>
+  <p style="color:var(--muted);margin-bottom:1rem;">
+    {{ target_user.first_name }} {{ target_user.last_name }} · {{ target_user.email }}
+    · Statut : <strong>{{ target_user.status.value }}</strong>
+  </p>
+  {% if request.query_params.get('ok') %}<div class="alert alert-success">{{ request.query_params.get('ok') }}</div>{% endif %}
+  {% if request.query_params.get('error') %}<div class="alert">{{ request.query_params.get('error') }}</div>{% endif %}
+
+  {% if target_user.status.value == 'pending' %}
+  <form method="post" action="/admin/users/{{ target_user.id }}/approve" class="info-panel">
+    <h2>Approuver et attribuer des simulateurs</h2>
+    <p style="color:var(--muted);font-size:0.9rem;margin-bottom:1rem;">Cochez les examens autorises pour cet utilisateur.</p>
+    <div class="admin-exam-checkboxes">
+      {% for exam in exams %}
+      <label class="admin-exam-check"><input type="checkbox" name="exam_ids" value="{{ exam.id }}"> <strong>{{ exam.code }}</strong> — {{ exam.name }}</label>
+      {% endfor %}
+    </div>
+    <div style="margin-top:1rem;display:flex;gap:0.5rem;flex-wrap:wrap;">
+      <button type="submit" class="btn btn-primary">Approuver l acces</button>
+      <button type="submit" formaction="/admin/users/{{ target_user.id }}/reject" class="btn btn-ghost" style="color:var(--danger);" onclick="return confirm('Refuser cette demande ?');">Refuser</button>
+    </div>
+  </form>
+  {% elif target_user.status.value == 'approved' %}
+  <form method="post" action="/admin/users/{{ target_user.id }}/access" class="info-panel">
+    <h2>Simulateurs autorises</h2>
+    <div class="admin-exam-checkboxes">
+      {% for exam in exams %}
+      <label class="admin-exam-check"><input type="checkbox" name="exam_ids" value="{{ exam.id }}"{% if exam.id in allowed_exam_ids %} checked{% endif %}> <strong>{{ exam.code }}</strong> — {{ exam.name }}</label>
+      {% endfor %}
+    </div>
+    <button type="submit" class="btn btn-primary" style="margin-top:1rem;">Enregistrer</button>
+  </form>
+  {% else %}
+  <div class="info-panel"><p style="color:var(--muted);">Compte refuse. Aucun simulateur n est accessible.</p></div>
+  {% endif %}
+</div>
+{% endblock %}

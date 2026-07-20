@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}{% if is_topic_vendor %}Simulations par sujet{% else %}{{ vendor_name }}{% endif %} — Examinator{% endblock %}
+{% block content %}
+<div class="container">
+  <a href="/catalog" style="color:var(--muted);font-size:0.9rem;">← Simulator programs</a>
+  <section class="hero" style="padding-top:1.5rem;">
+    <div class="vendor-section-brand vendor-section-brand-center">
+      {% if vendor_meta.logo_url %}
+      <img
+        src="{{ vendor_meta.logo_url }}"
+        alt=""
+        class="vendor-logo{% if vendor_meta.slug == 'comptia' %} vendor-logo-wide{% endif %}{% if is_topic_vendor %} vendor-logo-lg{% endif %}"
+        width="{% if vendor_meta.slug == 'comptia' %}140{% else %}64{% endif %}"
+        height="{% if vendor_meta.slug == 'comptia' %}42{% else %}64{% endif %}"
+        loading="lazy"
+      >
+      {% endif %}
+      <div>
+        <span class="vendor-badge{% if vendor_name == 'Microsoft' %} vendor-badge-microsoft{% elif vendor_name == 'CompTIA' %} vendor-badge-comptia{% elif is_topic_vendor %} vendor-badge-topics{% endif %}">{{ vendor_name if not is_topic_vendor else 'Simulations par sujet' }}</span>
+        <h1>{% if is_topic_vendor %}Programmes personnalisés Examinator{% else %}{{ vendor_name }} certifications{% endif %}</h1>
+        <p style="max-width:720px;margin:0.75rem auto 0;">{{ vendor_meta.description }}</p>
+      </div>
+    </div>
+  </section>
+
+  {% if families %}
+  <h2 class="level-heading" style="margin-top:1.5rem;">{% if is_topic_vendor %}Sujets disponibles{% else %}Certification tracks{% endif %}</h2>
+  <div class="family-grid">
+    {% for item in families %}
+    {% set fam = item.family %}
+    <article class="family-card{% if is_topic_vendor %} topic-card{% endif %}">
+      {% if is_topic_vendor and fam.poster_url %}
+      <img src="{{ fam.poster_url }}" alt="" class="topic-icon" width="44" height="44" loading="lazy">
+      {% endif %}
+      <span class="family-code">{{ fam.code }}</span>
+      <span class="family-theme">{{ fam.theme }}</span>
+      <h3><a href="/catalog/{{ fam.code }}">{{ fam.name }}</a></h3>
+      <p class="family-desc">{{ fam.description }}</p>
+      <div class="family-meta">
+        <span>{{ item.exam_count }} {% if is_topic_vendor %}simulation{{ 's' if item.exam_count != 1 else '' }}{% else %}exam{{ 's' if item.exam_count != 1 else '' }}{% endif %}</span>
+        {% if item.simulatable_count %}<span class="family-sim">{{ item.simulatable_count }} {% if is_topic_vendor %}prête{{ 's' if item.simulatable_count != 1 else '' }}{% else %}with simulation{% endif %}</span>{% endif %}
+      </div>
+      <a href="/catalog/{{ fam.code }}" class="btn btn-secondary btn-block">{% if is_topic_vendor %}Voir les examens →{% else %}View exams →{% endif %}</a>
+    </article>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if orphan_entries %}
+  <h2 class="level-heading" style="margin-top:2rem;">Uncategorized {{ vendor_name }} exams</h2>
+  <p style="color:var(--muted);margin-bottom:1rem;">These exams are not yet assigned to a track.</p>
+  <div class="exam-grid">
+    {% for entry in orphan_entries %}
+    {% set exam = entry.exam %}
+    {% set stats = entry.stats %}
+    <article class="exam-card">
+      <span class="exam-code">{{ exam.code }}</span>
+      <h3>{{ exam.name }}</h3>
+      {% if exam.overview %}<p class="exam-overview">{{ exam.overview[:200] }}{% if exam.overview|length > 200 %}…{% endif %}</p>{% endif %}
+      <div class="exam-meta">
+        <span>⏱ {{ exam.duration_minutes }} min</span>
+        <span>🎯 {{ exam.passing_score }}/1000</span>
+        {% if stats.pool_count %}<span>📚 {{ stats.pool_count }} questions</span>{% endif %}
+      </div>
+      <div class="exam-card-actions">
+        {% if user and stats.pool_count %}
+        <a href="/exam/{{ exam.id }}/briefing" class="btn btn-primary btn-sm">Start simulation</a>
+        {% elif user %}
+        <span class="btn btn-secondary btn-sm" style="opacity:0.6;cursor:default;">Pool not ready</span>
+        {% else %}
+        <a href="/register" class="btn btn-secondary btn-sm">Register to practice</a>
+        {% endif %}
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if not families and not orphan_entries %}
+  <p style="color:var(--muted);margin-top:1.5rem;">No {{ vendor_name }} exams listed yet.</p>
+  {% endif %}
+</div>
+{% endblock %}

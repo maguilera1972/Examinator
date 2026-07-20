@@ -1,0 +1,404 @@
+{% extends "base.html" %}
+{% block title %}Administration — Examinator{% endblock %}
+{% block content %}
+{% set default_section = 'users' if pending_users else 'create' %}
+{% set active_section = request.query_params.get('section') or default_section %}
+<div class="container admin-page" style="padding:2rem 1.5rem 3rem;">
+  <header class="admin-page-header">
+    <div>
+      <h1>Administration</h1>
+      <p class="page-subtitle" style="margin:0;">Examens, utilisateurs, pools et imports</p>
+    </div>
+  </header>
+
+  {% if request.query_params.get('ok') %}
+  <div class="alert alert-success">{{ request.query_params.get('ok') }}</div>
+  {% endif %}
+  {% if request.query_params.get('error') %}
+  <div class="alert">{{ request.query_params.get('error') }}</div>
+  {% endif %}
+
+  <nav class="admin-tabs" role="tablist" aria-label="Sections administration" data-admin-tabs data-default-section="{{ active_section }}">
+    <button type="button" class="admin-tab" role="tab" data-section="create" aria-controls="panel-create">Créer un examen</button>
+    <button type="button" class="admin-tab" role="tab" data-section="users" aria-controls="panel-users">
+      Utilisateurs
+      {% if pending_users %}<span class="admin-tab-badge">{{ pending_users|length }}</span>{% endif %}
+    </button>
+    <button type="button" class="admin-tab" role="tab" data-section="exams" aria-controls="panel-exams">Examens ({{ exams|length }})</button>
+    <button type="button" class="admin-tab" role="tab" data-section="pools" aria-controls="panel-pools">Pools</button>
+    <button type="button" class="admin-tab" role="tab" data-section="import" aria-controls="panel-import">Importer</button>
+    <button type="button" class="admin-tab" role="tab" data-section="sync" aria-controls="panel-sync">Sync Microsoft</button>
+    <button type="button" class="admin-tab" role="tab" data-section="logs" aria-controls="panel-logs">Journal</button>
+  </nav>
+
+  <div class="admin-panels">
+    <section id="panel-create" class="admin-panel info-panel" data-admin-panel="create" role="tabpanel">
+      <h2>Créer un examen / simulation</h2>
+      <p style="color:var(--muted);font-size:0.9rem;margin-bottom:1rem;">
+        Créez une simulation de toutes pièces, rattachez-la à une catégorie existante
+        ou créez une nouvelle catégorie. Ensuite allez dans <strong>Importer</strong> pour charger les questions.
+      </p>
+      <form method="post" action="/admin/exams" class="admin-form">
+        <input type="hidden" name="admin_section" value="create">
+        <div class="form-group"><label>Code examen</label><input name="code" placeholder="CUST-SEC01" required></div>
+        <div class="form-group"><label>Titre</label><input name="name" placeholder="Simulation Cybersécurité — niveau 1" required></div>
+        <div class="form-group">
+          <label>Catégorie existante</label>
+          <select name="family_id" id="adminFamilySelect">
+            <option value="">— Choisir une catégorie —</option>
+            {% for fam in families %}
+            <option value="{{ fam.id }}">[{{ fam.vendor }}] {{ fam.code }} — {{ fam.name }}</option>
+            {% endfor %}
+          </select>
+          <p style="color:var(--muted);font-size:0.85rem;margin-top:0.35rem;">
+            Ou créez une nouvelle catégorie ci-dessous (prioritaire si le code catégorie est renseigné).
+          </p>
+        </div>
+        <details style="margin-bottom:1rem;">
+          <summary style="cursor:pointer;color:var(--accent);">Créer une nouvelle catégorie</summary>
+          <div class="admin-form" style="margin-top:0.75rem;">
+            <div class="form-group"><label>Code catégorie</label><input name="new_family_code" placeholder="CUST-CY"></div>
+            <div class="form-group"><label>Nom catégorie</label><input name="new_family_name" placeholder="Cybersécurité custom"></div>
+            <div class="form-group">
+              <label>Programme / vendor</label>
+              <select name="new_family_vendor">
+                <option value="Examinator" selected>Examinator (topics / custom)</option>
+                <option value="Microsoft">Microsoft</option>
+                <option value="CompTIA">CompTIA</option>
+              </select>
+            </div>
+            <div class="form-group"><label>Thème (optionnel)</label><input name="new_family_theme" placeholder="Sécurité"></div>
+            <div class="form-group"><label>Description (optionnel)</label><textarea name="new_family_description" rows="2"></textarea></div>
+          </div>
+        </details>
+        <div class="admin-form-row">
+          <div class="form-group"><label>Durée (min)</label><input name="duration_minutes" type="number" value="90" min="1"></div>
+          <div class="form-group"><label>Score de réussite</label><input name="passing_score" type="number" value="700" min="0" max="1000"></div>
+          <div class="form-group"><label>Questions / session</label><input name="questions_per_session" type="number" value="50" min="1"></div>
+        </div>
+        <div class="form-group"><label>Niveau</label><input name="level" value="Practice" placeholder="Practice, Fundamentals…"></div>
+        <div class="form-group"><label>Description</label><textarea name="description" rows="5" placeholder="Objectif de la simulation…"></textarea></div>
+        <div class="form-group">
+          <label style="display:flex;align-items:center;gap:0.5rem;font-weight:normal;">
+            <input type="checkbox" name="is_active" value="1" checked>
+            Actif (visible dans le catalogue)
+          </label>
+        </div>
+        <button type="submit" class="btn btn-primary">Créer l’examen</button>
+      </form>
+    </section>
+
+    <section id="panel-users" class="admin-panel" data-admin-panel="users" role="tabpanel" hidden>
+      <section class="info-panel admin-pending-panel" style="margin-bottom:1.5rem;">
+        <h2>Demandes d’accès en attente ({{ pending_users|length }})</h2>
+        <p style="color:var(--muted);font-size:0.9rem;margin-bottom:1rem;">
+          Validez les nouveaux comptes et sélectionnez les simulateurs autorisés pour chaque utilisateur.
+        </p>
+        {% if pending_users %}
+        <div class="admin-users-list">
+          {% for u in pending_users %}
+          <article class="admin-user-block admin-user-pending">
+            <div class="admin-user-header">
+              <div class="admin-user-identity">
+                <h3>{{ u.first_name }} {{ u.last_name }}</h3>
+                <p class="admin-user-email">{{ u.email }}</p>
+                <p style="color:var(--muted);font-size:0.85rem;">Inscrit le {{ u.created_at.strftime('%d %b %Y, %H:%M') }} UTC</p>
+              </div>
+              <a href="/admin/users/{{ u.id }}" class="btn btn-primary btn-sm">Valider l’accès</a>
+            </div>
+          </article>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p style="color:var(--muted);">Aucune demande en attente.</p>
+        {% endif %}
+      </section>
+
+      <section class="info-panel">
+        <h2>Utilisateurs enregistrés ({{ users_report|length }})</h2>
+        <p style="color:var(--muted);font-size:0.9rem;margin-bottom:1rem;">
+          Comptes du portail et activité de simulation. Seuls les administrateurs peuvent supprimer un compte.
+        </p>
+        <div class="admin-filter-bar">
+          <label class="sr-only" for="adminUserFilter">Filtrer les utilisateurs</label>
+          <input type="search" id="adminUserFilter" class="admin-filter-input" placeholder="Filtrer par nom, e-mail ou code examen…" data-admin-filter="users">
+        </div>
+        {% if users_report %}
+        <div class="admin-users-list" data-admin-filter-list="users">
+          {% for entry in users_report %}
+          {% set u = entry.user %}
+          <article class="admin-user-block" data-filter-text="{{ u.first_name }} {{ u.last_name }} {{ u.email }}{% if entry.allowed_exams %} {{ entry.allowed_exams|map(attribute='code')|join(' ') }}{% endif %}{% if entry.exam_stats %} {{ entry.exam_stats|join(' ') }}{% endif %}">
+            <div class="admin-user-header">
+              <div class="admin-user-identity-row">
+              <img
+                src="{{ gravatar_url(u.email, 52) }}"
+                alt=""
+                class="user-avatar user-avatar-md"
+                width="52"
+                height="52"
+                loading="lazy"
+                decoding="async"
+              >
+              <div class="admin-user-identity">
+                <h3>{{ u.first_name }} {{ u.last_name }}{% if u.email == user.email %} <span class="admin-badge">You</span>{% endif %}</h3>
+                <p class="admin-user-email">{{ u.email }}</p>
+                <p style="color:var(--muted);font-size:0.85rem;">Registered {{ u.created_at.strftime('%d %b %Y, %H:%M') }} UTC · Statut: <span class="status-badge status-{{ entry.status }}">{{ entry.status }}</span> · {{ entry.total_attempts }} attempt{{ 's' if entry.total_attempts != 1 else '' }}</p>
+              </div>
+              </div>
+              <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;">
+              <a href="/admin/users/{{ u.id }}/results" class="btn btn-secondary btn-sm">Voir les résultats</a>
+              {% if u.email != user.email %}
+              <a href="/admin/users/{{ u.id }}" class="btn btn-secondary btn-sm">Gérer l’accès</a>
+              <form method="post" action="/admin/users/{{ u.id }}/delete" onsubmit="return confirm('Delete {{ u.first_name }} {{ u.last_name }} and all their simulation history?');">
+                <input type="hidden" name="admin_section" value="users">
+                <button type="submit" class="btn btn-ghost btn-sm" style="color:var(--danger);">Delete user</button>
+              </form>
+              {% else %}
+              <a href="/admin/users/{{ u.id }}" class="btn btn-ghost btn-sm">Gérer l’accès</a>
+              {% endif %}
+              </div>
+            </div>
+            {% if entry.has_full_access %}
+            <p style="font-size:0.9rem;margin-bottom:0.75rem;"><strong>Simulateurs autorisés :</strong> <span class="full-access-badge">Full Access</span></p>
+            {% elif entry.allowed_exams %}
+            <p style="font-size:0.9rem;margin-bottom:0.75rem;"><strong>Simulateurs autorisés :</strong> {{ entry.allowed_exams|map(attribute='code')|join(', ') }}</p>
+            {% endif %}
+            {% if entry.exam_stats %}
+            <table class="breakdown-table admin-attempts-table">
+              <thead>
+                <tr><th>Exam</th><th>Attempts</th><th>Dates</th><th></th></tr>
+              </thead>
+              <tbody>
+                {% for code, stat in entry.exam_stats.items() %}
+                <tr>
+                  <td><strong>{{ code }}</strong></td>
+                  <td>{{ stat.count }}</td>
+                  <td>
+                    {% for s in stat.attempts %}
+                    <span class="attempt-date">
+                      <a href="/session/{{ s.id }}/results">{{ s.started_at.strftime('%Y-%m-%d %H:%M') }}{% if s.status.value == 'completed' %} · {{ s.score_percent|round(0)|int }}%{% endif %}</a>
+                    </span>{% if not loop.last %}<br>{% endif %}
+                    {% endfor %}
+                  </td>
+                  <td>
+                    <a href="/admin/users/{{ u.id }}/exams/{{ code }}/export" class="btn btn-ghost btn-sm" download>PDF</a>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+            {% else %}
+            <p style="color:var(--muted);font-size:0.9rem;">No simulation attempts yet.</p>
+            {% endif %}
+          </article>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p style="color:var(--muted);">No users registered yet.</p>
+        {% endif %}
+      </section>
+    </section>
+
+    <section id="panel-exams" class="admin-panel info-panel" data-admin-panel="exams" role="tabpanel" hidden>
+      <h2>Examens &amp; sources ({{ exams|length }})</h2>
+      <p style="color:var(--muted);font-size:0.9rem;margin-bottom:1rem;">
+        Modifier, vider le pool, supprimer, ou ajouter des sources par examen.
+      </p>
+      <div class="admin-filter-bar">
+        <label class="sr-only" for="adminExamFilter">Filtrer les examens</label>
+        <input type="search" id="adminExamFilter" class="admin-filter-input" placeholder="Filtrer par code, titre, vendor ou catégorie…" data-admin-filter="exams">
+      </div>
+      <div data-admin-filter-list="exams">
+        {% for exam in exams %}
+        <div class="admin-exam-block" data-filter-text="{{ exam.code }} {{ exam.name }} {{ exam.vendor }} {% if exam.family %}{{ exam.family.code }} {{ exam.family.name }}{% endif %} {% if exam.external_source == 'admin_custom' %}custom{% endif %}">
+          <div class="admin-exam-header">
+            <div>
+              <h3>{{ exam.code }} — {{ exam.name }}{% if not exam.is_active %} <span class="admin-badge" style="background:var(--danger);">Inactif</span>{% endif %}{% if exam.external_source == 'admin_custom' %} <span class="admin-badge">Custom</span>{% endif %}</h3>
+              <p style="color:var(--muted);font-size:0.85rem;margin:0;">
+                {{ exam.vendor }}{% if exam.family %} · {{ exam.family.code }} — {{ exam.family.name }}{% endif %}
+                · {{ exam.duration_minutes }} min
+                · Pool : {% if exam.questions_updated_at %}{{ exam.questions_updated_at.strftime('%d %b %Y %H:%M') }} UTC{% else %}—{% endif %}
+              </p>
+            </div>
+            <div class="admin-exam-actions">
+              <a href="/admin/exams/{{ exam.id }}" class="btn btn-secondary btn-sm">Modifier</a>
+              <a href="/admin/import/excel-template?exam_code={{ exam.code }}" class="btn btn-ghost btn-sm">Modèle Excel</a>
+              <form method="post" action="/admin/exams/{{ exam.id }}/clear-pool" onsubmit="return confirm('Vider définitivement le pool de {{ exam.code }} ?\n\n• Toutes les questions seront supprimées\n• L’historique des sessions de cet examen sera effacé\n• L’examen et ses sources restent en place\n\nVous pourrez ensuite réimporter un fichier à jour.');">
+                <input type="hidden" name="admin_section" value="exams">
+                <button type="submit" class="btn btn-ghost btn-sm" style="color:var(--danger);">Vider le pool</button>
+              </form>
+              <form method="post" action="/admin/exams/{{ exam.id }}/delete" onsubmit="return confirm('Supprimer définitivement {{ exam.code }} et toutes ses données associées ?');">
+                <input type="hidden" name="admin_section" value="exams">
+                <button type="submit" class="btn btn-ghost btn-sm" style="color:var(--danger);">Supprimer</button>
+              </form>
+            </div>
+          </div>
+          <ul class="source-list">
+            {% for s in exam.sources %}
+            <li><strong>{{ s.name }}</strong> <span class="update-source">({{ s.source_key }})</span>{% if s.url %} — <a href="{{ s.url }}" target="_blank" rel="noopener">link</a>{% endif %}</li>
+            {% else %}
+            <li style="color:var(--muted)">No sources configured.</li>
+            {% endfor %}
+          </ul>
+          <details style="margin-top:0.75rem;">
+            <summary style="cursor:pointer;color:var(--accent)">Add source</summary>
+            <form method="post" action="/admin/exams/{{ exam.id }}/sources" class="admin-form" style="margin-top:0.75rem;">
+              <input type="hidden" name="admin_section" value="exams">
+              <div class="form-group">
+                <label>Source type</label>
+                <select name="source_key">
+                  {% for key, label, url in known_sources %}
+                  <option value="{{ key }}">{{ label }}</option>
+                  {% endfor %}
+                  <option value="custom">Custom</option>
+                </select>
+              </div>
+              <div class="form-group"><label>Display name</label><input name="name" required></div>
+              <div class="form-group"><label>URL</label><input name="url" placeholder="https://www.examtopics.com/exams/microsoft/az-900/"></div>
+              <button type="submit" class="btn btn-secondary">Add source</button>
+            </form>
+          </details>
+        </div>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section id="panel-pools" class="admin-panel info-panel" data-admin-panel="pools" role="tabpanel" hidden>
+      <h2>Qualité des pools</h2>
+      <p style="color:var(--muted);font-size:0.9rem;margin-bottom:1rem;">
+        Status : {% if quality.ok %}<span style="color:var(--success)">OK</span>{% else %}<span style="color:var(--danger)">Issues detected</span>{% endif %}
+      </p>
+      <div class="admin-filter-bar">
+        <label class="sr-only" for="adminPoolFilter">Filtrer les pools</label>
+        <input type="search" id="adminPoolFilter" class="admin-filter-input" placeholder="Filtrer par code examen…" data-admin-filter="pools">
+      </div>
+      <table class="breakdown-table">
+        <thead>
+          <tr><th>Exam</th><th>Active</th><th>Unique</th><th>Duplicates</th><th>Session ready</th><th></th></tr>
+        </thead>
+        <tbody data-admin-filter-list="pools">
+          {% for e in quality.exams %}
+          <tr data-filter-text="{{ e.exam_code }}">
+            <td>{{ e.exam_code }}</td>
+            <td>{{ e.active_count }}</td>
+            <td>{{ e.unique_count }}</td>
+            <td>{% if e.duplicate_groups %}<span style="color:var(--danger)">{{ e.duplicate_groups }}</span>{% else %}0{% endif %}</td>
+            <td>{% if e.can_run_session %}✓{% else %}✗{% endif %}</td>
+            <td>
+              <form method="post" action="/admin/exams/{{ e.exam_id }}/clear-pool" style="margin:0;" onsubmit="return confirm('Vider définitivement le pool de {{ e.exam_code }} ?\n\n• Toutes les questions seront supprimées\n• L’historique des sessions de cet examen sera effacé\n• L’examen reste en place');">
+                <input type="hidden" name="admin_section" value="pools">
+                <button type="submit" class="btn btn-ghost btn-sm" style="color:var(--danger);"{% if e.total_count == 0 %} disabled title="Pool déjà vide"{% endif %}>Vider le pool</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <form method="post" action="/admin/maintenance/dedupe" style="margin-top:1rem;display:inline;">
+        <input type="hidden" name="admin_section" value="pools">
+        <button type="submit" class="btn btn-secondary">Lancer la déduplication</button>
+      </form>
+      <form method="post" action="/admin/maintenance/clear-questions" style="margin-top:1rem;display:inline;margin-left:0.5rem;" onsubmit="return confirm('Désactiver toutes les questions actives de TOUS les simulateurs ? Préférez « Vider le pool » par examen.');">
+        <input type="hidden" name="admin_section" value="pools">
+        <button type="submit" class="btn btn-ghost btn-sm" style="color:var(--danger);">Désactiver tous les pools</button>
+      </form>
+    </section>
+
+    <section id="panel-import" class="admin-panel info-panel" data-admin-panel="import" role="tabpanel" hidden>
+      <h2>Importer des questions</h2>
+      <p style="color:var(--muted);font-size:0.9rem;margin-bottom:1.25rem;">
+        Les imports <strong>ajoutent ou mettent à jour</strong> des questions. Pour repartir de zéro, videz d’abord le pool (onglet Pools ou Examens).
+      </p>
+
+      <h3 style="font-size:1rem;margin:0 0 0.75rem;">Excel</h3>
+      <p style="margin-bottom:1rem;">
+        <a href="/admin/import/excel-template" class="btn btn-secondary">Modèle global</a>
+      </p>
+      <details style="margin-bottom:1rem;">
+        <summary style="cursor:pointer;color:var(--accent);">Modèles par simulateur ({{ exams|length }})</summary>
+        <div class="admin-template-links" style="margin-top:0.75rem;">
+          {% for exam in exams %}
+          <a href="/admin/import/excel-template?exam_code={{ exam.code }}" class="btn btn-ghost btn-sm">{{ exam.code }}</a>
+          {% endfor %}
+        </div>
+      </details>
+      <form method="post" action="/admin/import/excel" enctype="multipart/form-data" class="admin-form">
+        <input type="hidden" name="admin_section" value="import">
+        <div class="form-group">
+          <label>Examen cible</label>
+          <select name="exam_code">
+            <option value="">— Détecter depuis le fichier —</option>
+            {% for exam in exams %}
+            <option value="{{ exam.code }}">{{ exam.code }} — {{ exam.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Fichier Excel (.xlsx)</label>
+          <input type="file" name="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" required>
+        </div>
+        <div class="form-group">
+          <label style="display:flex;align-items:center;gap:0.5rem;font-weight:normal;">
+            <input type="checkbox" name="replace_existing" value="1">
+            Remplacer les questions existantes pour les examens du fichier
+          </label>
+        </div>
+        <button type="submit" class="btn btn-primary">Importer depuis Excel</button>
+      </form>
+
+      <hr style="border:none;border-top:1px solid var(--border);margin:1.5rem 0;">
+
+      <h3 style="font-size:1rem;margin:0 0 0.75rem;">JSON</h3>
+      <form method="post" action="/admin/import/json" enctype="multipart/form-data" class="admin-form">
+        <input type="hidden" name="admin_section" value="import">
+        <div class="form-group">
+          <label>Code examen</label>
+          <input name="exam_code" placeholder="AZ-900" required>
+        </div>
+        <div class="form-group">
+          <label>Fichier JSON</label>
+          <input type="file" name="file" accept=".json,application/json" required>
+        </div>
+        <button type="submit" class="btn btn-secondary">Importer depuis JSON</button>
+      </form>
+    </section>
+
+    <section id="panel-sync" class="admin-panel info-panel admin-sync-panel" data-admin-panel="sync" role="tabpanel" hidden>
+      <h2>Synchronisation Microsoft Learn</h2>
+      <p style="color:var(--muted);font-size:0.95rem;margin-bottom:1rem;max-width:720px;">
+        Met à jour les familles, fiches examens et pondérations (skills measured) depuis Microsoft Learn.
+        Les examens <strong>custom</strong> créés manuellement ne sont pas désactivés.
+      </p>
+      <div class="admin-sync-actions">
+        <a href="/admin/sync/microsoft" class="btn btn-primary">Synchroniser tout le catalogue Microsoft</a>
+        <a href="/admin/sync/sections" class="btn btn-secondary">Mettre à jour les pondérations uniquement</a>
+      </div>
+    </section>
+
+    <section id="panel-logs" class="admin-panel info-panel" data-admin-panel="logs" role="tabpanel" hidden>
+      <h2>Journal des imports</h2>
+      <table class="history-table">
+        <thead><tr><th>Date</th><th>Source</th><th>Exam</th><th>Added</th><th>Updated</th><th>Status</th></tr></thead>
+        <tbody>
+          {% for log in logs %}
+          <tr>
+            <td>{{ log.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+            <td>{{ log.source }}</td>
+            <td>{{ log.exam_code or '—' }}</td>
+            <td>{{ log.questions_added }}</td>
+            <td>{{ log.questions_updated }}</td>
+            <td>{{ log.status }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="6" style="color:var(--muted);">Aucun import récent.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/admin.js?v=1"></script>
+{% endblock %}

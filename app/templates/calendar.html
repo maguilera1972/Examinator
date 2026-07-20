@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}My calendar — Examinator{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Simulation calendar</h1>
+  <p class="page-subtitle">Browse your exam attempts by date. Click any attempt to view full results.</p>
+</div>
+
+{% if deleted %}
+<div class="alert alert-success">Attempt removed from your calendar.</div>
+{% endif %}
+{% if request.query_params.get('error') == 'not_found' %}
+<div class="alert">This attempt could not be found or was already removed.</div>
+{% endif %}
+
+<div class="calendar-toolbar info-panel">
+  <div class="calendar-nav">
+    <a href="/calendar?year={{ cal.prev.year }}&month={{ cal.prev.month }}" class="btn btn-secondary btn-sm">← Previous</a>
+    <h2 class="calendar-month-title">{{ cal.month_name }}</h2>
+    <a href="/calendar?year={{ cal.next.year }}&month={{ cal.next.month }}" class="btn btn-secondary btn-sm">Next →</a>
+  </div>
+  <div class="calendar-legend">
+    <span class="legend-item"><span class="dot dot-pass"></span> Passed</span>
+    <span class="legend-item"><span class="dot dot-fail"></span> Failed</span>
+    <span class="legend-item"><span class="dot dot-progress"></span> In progress</span>
+    <span class="legend-stat">{{ cal.stats.total }} attempt(s) · {{ cal.stats.passed }} passed · {{ cal.stats.failed }} failed</span>
+  </div>
+</div>
+
+<div class="calendar-grid-wrap">
+  <div class="calendar-grid">
+    {% for label in cal.weekday_labels %}
+    <div class="calendar-weekday">{{ label }}</div>
+    {% endfor %}
+    {% for week in cal.weeks %}
+      {% for day in week %}
+      <div class="calendar-day{% if not day.in_month %} other-month{% endif %}{% if day.is_today %} today{% endif %}">
+        <span class="calendar-day-num">{{ day.day }}</span>
+        <div class="calendar-events">
+          {% for event in day.events %}
+          <div class="calendar-event-row{% if event.passed is true %} event-pass{% elif event.passed is false %} event-fail{% else %} event-progress{% endif %}">
+            <a href="{{ event.results_url }}" class="calendar-event" title="{{ event.exam_name }} — {{ event.score_percent }}%">
+              <span class="event-code">{{ event.exam_code }}</span>
+              <span class="event-meta">{{ event.time }} · {{ event.score_percent }}%</span>
+              <span class="event-badge">{% if event.passed is true %}Passed{% elif event.passed is false %}Failed{% else %}In progress{% endif %}</span>
+            </a>
+            <form method="post" action="/session/{{ event.id }}/delete" class="calendar-event-delete" onsubmit="return confirm('Remove this attempt from your calendar? This cannot be undone.');">
+              <input type="hidden" name="year" value="{{ cal.year }}">
+              <input type="hidden" name="month" value="{{ cal.month }}">
+              <button type="submit" class="btn-delete-event" aria-label="Remove attempt" title="Remove from calendar">×</button>
+            </form>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endfor %}
+    {% endfor %}
+  </div>
+</div>
+
+<div class="info-panel" style="margin-top:1.5rem;">
+  <h2>How to use</h2>
+  <ul>
+    <li>Navigate months with <strong>Previous</strong> and <strong>Next</strong>.</li>
+    <li>Each colored block is one simulation attempt on that day.</li>
+    <li><span style="color:var(--success)">Green</span> = passed · <span style="color:var(--danger)">Red</span> = below passing score.</li>
+    <li>Click an attempt to open the detailed results (score, sections, question review).</li>
+    <li>Use the <strong>×</strong> button on an attempt to remove it from your calendar.</li>
+  </ul>
+</div>
+{% endblock %}

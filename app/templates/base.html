@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Examinator{% endblock %}</title>
+  <link rel="preconnect" href="https://www.gravatar.com">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/style.css?v=25">
+  <link rel="icon" type="image/png" href="/static/img/favicon.png" sizes="32x32">
+  <link rel="shortcut icon" type="image/png" href="/static/img/favicon.png">
+  <link rel="apple-touch-icon" href="/static/img/favicon.png">
+  {% block head %}{% endblock %}
+</head>
+<body class="{% block body_class %}app-shell{% endblock %}">
+  {% block shell %}
+  <div class="app-layout">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-brand">
+        <a href="/" class="sidebar-logo" aria-label="Examinator — home">
+          <img src="/static/img/logo.png?v=2" alt="Examinator" class="logo-img" width="800" height="440">
+        </a>
+      </div>
+      <div class="sidebar-body">
+      <form class="sidebar-search" action="/catalog/search" method="get" role="search">
+        <label for="sidebarSearch" class="sr-only">Search exams</label>
+        <input
+          id="sidebarSearch"
+          type="search"
+          name="q"
+          value="{{ request.query_params.get('q', '') if request.url.path.startswith('/catalog/search') else '' }}"
+          placeholder="Search exams…"
+          autocomplete="off"
+        >
+        <button type="submit" class="sidebar-search-btn" aria-label="Search">⌕</button>
+      </form>
+      <nav class="sidebar-nav" aria-label="Main navigation">
+        <a href="/catalog" class="sidebar-link{% if request.url.path.startswith('/catalog') %} active{% endif %}">
+          <span class="sidebar-icon">🎯</span>
+          <span>Certification tracks</span>
+        </a>
+        <a href="/" class="sidebar-link{% if request.url.path == '/' %} active{% endif %}">
+          <span class="sidebar-icon">🏠</span>
+          <span>Home</span>
+        </a>
+        {% if user %}
+        <a href="/profile" class="sidebar-link{% if request.url.path.startswith('/profile') %} active{% endif %}">
+          <span class="sidebar-icon">👤</span>
+          <span>My profile</span>
+        </a>
+        <a href="/calendar" class="sidebar-link{% if request.url.path.startswith('/calendar') %} active{% endif %}">
+          <span class="sidebar-icon">📅</span>
+          <span>My calendar</span>
+        </a>
+        {% else %}
+        <a href="/register" class="sidebar-link{% if request.url.path == '/register' %} active{% endif %}">
+          <span class="sidebar-icon">👤</span>
+          <span>Register</span>
+        </a>
+        {% endif %}
+        <a href="/help" class="sidebar-link{% if request.url.path.startswith('/help') %} active{% endif %}">
+          <span class="sidebar-icon">📖</span>
+          <span>User guide</span>
+        </a>
+        {% if user and is_admin %}
+        <a href="/admin" class="sidebar-link{% if request.url.path.startswith('/admin') %} active{% endif %}">
+          <span class="sidebar-icon">⚙️</span>
+          <span>Administration</span>
+        </a>
+        {% endif %}
+      </nav>
+      <div class="sidebar-footer">
+        {% if user %}
+        <a href="/profile" class="sidebar-user-card sidebar-user-card-link">
+          <img
+            src="{{ gravatar_url(user.email, 56) }}"
+            alt=""
+            class="user-avatar"
+            width="56"
+            height="56"
+            loading="lazy"
+            decoding="async"
+          >
+          <div class="sidebar-user-info">
+            <p class="sidebar-user">{{ user.first_name }} {{ user.last_name }}</p>
+            <p class="sidebar-user-email">{{ user.email }}</p>
+          </div>
+        </a>
+        <form action="/logout" method="post">
+          <button type="submit" class="btn btn-ghost btn-block">Log out</button>
+        </form>
+        {% else %}
+        <a href="/register" class="btn btn-primary btn-block">Sign in / Register</a>
+        {% endif %}
+      </div>
+      </div>
+    </aside>
+    <div class="app-main section-{{ page_section(request.url.path) }}">
+      <div class="main-bg-decor" aria-hidden="true">
+        <span class="main-bg-grid"></span>
+        <div class="main-bg-orbs">
+          <span class="main-bg-orb main-bg-orb-cyan"></span>
+          <span class="main-bg-orb main-bg-orb-sky"></span>
+          <span class="main-bg-orb main-bg-orb-rose"></span>
+          <span class="main-bg-orb main-bg-orb-purple"></span>
+          <span class="main-bg-orb main-bg-orb-teal"></span>
+          <span class="main-bg-orb main-bg-orb-mix"></span>
+          <span class="main-bg-orb main-bg-orb-violet"></span>
+        </div>
+        <span class="main-bg-aurora"></span>
+        <div class="main-bg-comets">
+          <span class="main-bg-comet main-bg-comet-1"></span>
+          <span class="main-bg-comet main-bg-comet-2"></span>
+          <span class="main-bg-comet main-bg-comet-3"></span>
+          <span class="main-bg-comet main-bg-comet-4"></span>
+        </div>
+        <div class="main-bg-particles">
+          {% for i in range(8) %}
+          <span class="main-bg-particle"></span>
+          {% endfor %}
+        </div>
+      </div>
+      <button type="button" class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle menu">☰</button>
+      <main class="main-content">{% block content %}{% endblock %}</main>
+    </div>
+  </div>
+  {% endblock %}
+  <script src="/static/js/sidebar.js"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

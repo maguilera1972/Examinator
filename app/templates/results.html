@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% block title %}Results — {{ exam.code }}{% endblock %}
+{% block content %}
+<div class="container" style="padding:2rem 1.5rem 3rem;">
+  {% if viewing_as_admin %}
+  <p style="margin-bottom:1rem;">
+    <a href="/admin/users/{{ candidate.id }}/results" class="btn btn-ghost btn-sm">← Résultats de {{ candidate.first_name }} {{ candidate.last_name }}</a>
+  </p>
+  {% endif %}
+  <h1>{{ exam.code }} — Simulation results</h1>
+  <div class="results-user-row">
+    <img
+      src="{{ gravatar_url(candidate.email, 48) }}"
+      alt=""
+      class="user-avatar user-avatar-sm"
+      width="48"
+      height="48"
+      loading="lazy"
+      decoding="async"
+    >
+    {% if viewing_as_admin %}
+    <p style="color:var(--muted);margin:0;">
+      Résultats de <strong>{{ candidate.first_name }} {{ candidate.last_name }}</strong>
+      ({{ candidate.email }}) — vue administrateur.
+    </p>
+    {% else %}
+    <p style="color:var(--muted);margin:0;">{{ candidate.first_name }}, here is your performance summary.</p>
+    {% endif %}
+  </div>
+
+  <div class="score-hero">
+    <div class="score-value {% if passed %}pass{% else %}fail{% endif %}">{{ session.score_percent }}%</div>
+    <p style="color:var(--muted);margin-top:0.5rem;">
+      {% if passed %}Great job! You met the practice threshold.{% else %}Keep practicing — review the sections below.{% endif %}
+    </p>
+    <div class="score-stats">
+      <div class="stat-box correct">
+        <div class="num">{{ session.correct_count }}</div>
+        <div class="lbl">Correct</div>
+      </div>
+      <div class="stat-box incorrect">
+        <div class="num">{{ session.incorrect_count }}</div>
+        <div class="lbl">Incorrect</div>
+      </div>
+      <div class="stat-box unanswered">
+        <div class="num">{{ session.unanswered_count }}</div>
+        <div class="lbl">Unanswered</div>
+      </div>
+      <div class="stat-box">
+        <div class="num">{{ session.total_questions }}</div>
+        <div class="lbl">Total</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="info-panel">
+    <h2>Performance by section</h2>
+    <p style="color:var(--muted);font-size:0.9rem;margin-bottom:1rem;">
+      Sections with errors or unanswered items are flagged for revision.
+    </p>
+    <table class="breakdown-table">
+      <thead>
+        <tr>
+          <th>Section / Module</th>
+          <th>Weight</th>
+          <th>Correct</th>
+          <th>Errors</th>
+          <th>Unanswered</th>
+          <th>Score</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in breakdown %}
+        <tr>
+          <td>
+            {{ s.section_name }}
+            <div class="progress-bar">
+              <div class="progress-fill {% if s.score_percent < 60 %}low{% endif %}" style="width:{{ s.score_percent }}%"></div>
+            </div>
+          </td>
+          <td>{{ s.weight_percent|int }}%</td>
+          <td style="color:var(--success)">{{ s.correct }}</td>
+          <td style="color:var(--danger)">{{ s.incorrect }}</td>
+          <td style="color:var(--warning)">{{ s.unanswered }}</td>
+          <td><strong>{{ s.score_percent }}%</strong></td>
+          <td>
+            {% if s.needs_review %}
+            <span class="review-flag">⚠ Review recommended</span>
+            {% else %}
+            <span style="color:var(--success)">✓ Strong</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="review-section">
+    <h2 style="margin-bottom:1rem;">Question review</h2>
+    {% for item in review %}
+    <div class="review-item {% if item.is_correct %}correct{% else %}incorrect{% endif %}">
+      <strong>Q{{ item.order }}.</strong> {{ item.text }}
+      <div class="review-options">
+        {% for opt in item.options %}
+        <div class="{% if opt.is_correct %}correct-ans{% elif opt.id in item.selected_option_ids %}wrong-ans{% endif %}">
+          {{ opt.label }}. {{ opt.text }}
+          {% if opt.is_correct %} ✓{% endif %}
+          {% if opt.id in item.selected_option_ids and not opt.is_correct %} (your answer){% endif %}
+        </div>
+        {% endfor %}
+        {% if item.explanation %}
+        <p style="margin-top:0.75rem;color:var(--muted);font-size:0.9rem;"><em>{{ item.explanation }}</em></p>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div style="margin-top:2rem;display:flex;gap:1rem;flex-wrap:wrap;">
+    {% if viewing_as_admin %}
+    <a href="/admin/users/{{ candidate.id }}/exams/{{ exam.code }}/export" class="btn btn-secondary" download>Export PDF ({{ exam.code }})</a>
+    <a href="/admin/users/{{ candidate.id }}/results" class="btn btn-primary">Tous les résultats</a>
+    <a href="/admin" class="btn btn-ghost">Administration</a>
+    {% else %}
+    <a href="/exam/{{ exam.id }}/briefing" class="btn btn-primary">Retry this exam</a>
+    <a href="/profile/exams/{{ exam.code }}/export" class="btn btn-secondary" download>Export PDF</a>
+    <a href="/" class="btn btn-ghost">Back to catalog</a>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

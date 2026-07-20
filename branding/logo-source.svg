@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 220" role="img">
+  <defs>
+    <linearGradient id="g" x1="0%" y1="50%" x2="100%" y2="50%">
+      <stop offset="0%" stop-color="#7EE8FA"/>
+      <stop offset="100%" stop-color="#9D50BB"/>
+    </linearGradient>
+    <filter id="glow"><feGaussianBlur stdDeviation="2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  <rect width="400" height="220" fill="#223654"/>
+  <!-- Laptop -->
+  <g filter="url(#glow)" stroke="url(#g)" fill="none" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="115" y="30" width="170" height="105" rx="8"/>
+    <path d="M95 145h210l-18 22H113z"/>
+    <!-- Maze circle on screen -->
+    <circle cx="200" cy="82" r="34" stroke-width="3"/>
+    <circle cx="200" cy="82" r="22" stroke-width="3" stroke-dasharray="10 6"/>
+    <path d="M186 68h10v10h-10zM204 68h10v10h-10zM186 86h10v10h-10z" stroke-width="2.5"/>
+    <circle cx="200" cy="82" r="9" fill="url(#g)" stroke="none"/>
+    <path d="M196 82l3 3 6-7" stroke="#1B2B44" stroke-width="2.5" fill="none"/>
+  </g>
+  <text x="200" y="186" text-anchor="middle" fill="url(#g)" font-family="Inter,Arial,sans-serif" font-size="17" font-weight="700">SIMULATION &amp; CERTIFICATION</text>
+  <text x="200" y="208" text-anchor="middle" fill="#ffffff" font-family="Inter,Arial,sans-serif" font-size="15" font-weight="600" opacity="0.95">IT Exam Platform</text>
+</svg>

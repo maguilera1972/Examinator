@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}{% if q %}Search: {{ q }}{% else %}Search simulators{% endif %} — Examinator{% endblock %}
+{% block content %}
+<div class="container">
+  <div class="page-header">
+    <h1>Search simulators</h1>
+    <p class="page-subtitle">Find exams across Microsoft, CompTIA and custom programmes by keyword.</p>
+  </div>
+
+  <form method="get" action="/catalog/search" class="catalog-search-form info-panel" role="search">
+    <label for="catalogSearchMain" class="sr-only">Search keywords</label>
+    <div class="catalog-search-row">
+      <input
+        id="catalogSearchMain"
+        type="search"
+        name="q"
+        value="{{ q }}"
+        placeholder="e.g. AZ-900, Azure, Security, Network…"
+        autocomplete="off"
+        autofocus
+      >
+      <button type="submit" class="btn btn-primary">Search</button>
+    </div>
+    <p class="catalog-search-hint">Matches exam code, title, vendor, level, role, product and description.</p>
+  </form>
+
+  {% if tokens %}
+  <p class="catalog-search-summary">
+    {% if total %}
+    <strong>{{ total }}</strong> simulator{{ 's' if total != 1 else '' }} matching
+    {% for t in tokens %}<span class="search-token">{{ t }}</span>{% endfor %}
+    {% else %}
+    No simulators match {% for t in tokens %}<span class="search-token">{{ t }}</span>{% endfor %}
+    {% endif %}
+  </p>
+  {% elif not q %}
+  <p class="empty-state">Type one or more keywords above to search all exam simulators.</p>
+  {% endif %}
+
+  {% if entries %}
+  <div class="exam-grid">
+    {% for entry in entries %}
+    {% set exam = entry.exam %}
+    {% set stats = entry.stats %}
+    <article class="exam-card">
+      <span class="exam-code">{{ exam.code }}</span>
+      <span class="vendor-badge{% if exam.vendor == 'Microsoft' %} vendor-badge-microsoft{% elif exam.vendor == 'CompTIA' %} vendor-badge-comptia{% elif exam.vendor == 'Examinator' %} vendor-badge-topics{% endif %}">{{ exam.vendor }}</span>
+      {% if exam.level %}<span class="exam-level-badge">{{ exam.level }}</span>{% endif %}
+      <h3>{{ exam.name }}</h3>
+      {% if exam.family %}
+      <p class="exam-role"><a href="/catalog/{{ exam.family.code }}">{{ exam.family.name }}</a></p>
+      {% endif %}
+      {% if exam.role or exam.product %}
+      <p class="exam-role">{{ exam.product }}{% if exam.role %} · {{ exam.role }}{% endif %}</p>
+      {% endif %}
+      {% if exam.overview %}
+      <p class="exam-overview">{{ exam.overview[:220] }}{% if exam.overview|length > 220 %}…{% endif %}</p>
+      {% elif exam.description %}
+      <p class="exam-overview">{{ exam.description[:220] }}{% if exam.description|length > 220 %}…{% endif %}</p>
+      {% endif %}
+      <div class="exam-meta">
+        <span>⏱ {{ exam.duration_minutes }} min</span>
+        <span>🎯 {{ exam.passing_score }}/1000</span>
+        {% if stats.pool_count %}<span>📚 {{ stats.pool_count }} questions</span>{% endif %}
+      </div>
+      <div class="exam-card-actions">
+        {% if exam.family %}
+        <a href="/catalog/{{ exam.family.code }}" class="btn btn-ghost btn-sm">Track</a>
+        {% endif %}
+        {% if user and stats.pool_count and exam.id in allowed_exam_ids %}
+        <a href="/exam/{{ exam.id }}/briefing" class="btn btn-primary btn-sm">Start simulation</a>
+        {% elif user and stats.pool_count and user_is_pending %}
+        <span class="btn btn-secondary btn-sm" style="opacity:0.7;cursor:default;">En attente de validation</span>
+        {% elif user and stats.pool_count and user_is_approved %}
+        <span class="btn btn-secondary btn-sm" style="opacity:0.7;cursor:default;">Acces non autorise</span>
+        {% elif user and stats.pool_count %}
+        <span class="btn btn-secondary btn-sm" style="opacity:0.7;cursor:default;">Acces requis</span>
+        {% elif user %}
+        <span class="btn btn-secondary btn-sm" style="opacity:0.6;cursor:default;">Pool not ready</span>
+        {% else %}
+        <a href="/register" class="btn btn-secondary btn-sm">Register to practice</a>
+        {% endif %}
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+  {% elif tokens %}
+  <p class="empty-state">Try another keyword, or <a href="/catalog">browse certification tracks</a>.</p>
+  {% endif %}
+</div>
+{% endblock %}

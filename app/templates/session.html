@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block body_class %}no-sidebar{% endblock %}
+{% block title %}{{ exam.code }} Simulation — Examinator{% endblock %}
+{% block content %}
+<div class="container-fluid exam-layout">
+  <aside class="exam-sidebar">
+    <div class="timer" id="timer" data-remaining="{{ remaining_seconds }}">--:--</div>
+    <p style="font-size:0.85rem;color:var(--muted);text-align:center;margin-bottom:1rem;">{{ exam.code }} · {{ total_questions }} questions</p>
+    <div class="question-nav" id="questionNav">
+      {% for q in questions %}
+      <button type="button" class="q-nav-btn{% if loop.index == 1 %} active{% endif %}" data-index="{{ loop.index }}">{{ loop.index }}</button>
+      {% endfor %}
+    </div>
+    <form method="post" action="/session/{{ session.id }}/answer" id="submitForm" style="margin-top:1.25rem;">
+      <input type="hidden" name="question_id" id="submitQid" value="{{ questions[0].question_id }}">
+      <input type="hidden" name="current_index" value="1">
+      <input type="hidden" name="action" value="submit">
+      <button type="submit" class="btn btn-danger btn-block" onclick="return confirm('Submit exam now?')">Submit exam</button>
+    </form>
+  </aside>
+
+  <div class="exam-main">
+    {% for q in questions %}
+    <div class="question-panel" data-index="{{ loop.index }}" style="{% if loop.index != 1 %}display:none{% endif %}">
+      <form method="post" action="/session/{{ session.id }}/answer" class="answer-form">
+        <input type="hidden" name="question_id" value="{{ q.question_id }}">
+        <input type="hidden" name="current_index" value="{{ loop.index }}">
+
+        <div class="question-header">
+          <span>Question {{ loop.index }} of {{ total_questions }}</span>
+          <span class="q-type-badge">
+            {% if q.question_type == 'multiple' %}Multiple answers{% else %}Single answer{% endif %}
+          </span>
+        </div>
+
+        <div class="question-text">{{ q.text }}</div>
+
+        <div class="options-list">
+          {% for opt in q.options %}
+          <label class="option-item">
+            {% if q.question_type == 'multiple' %}
+            <input type="checkbox" name="option_ids" value="{{ opt.id }}">
+            {% else %}
+            <input type="radio" name="option_ids" value="{{ opt.id }}" required>
+            {% endif %}
+            <span class="option-label">{{ opt.label }}.</span>
+            <span>{{ opt.text }}</span>
+          </label>
+          {% endfor %}
+        </div>
+
+        <div class="exam-actions">
+          {% if loop.index > 1 %}
+          <button type="submit" name="action" value="prev" class="btn btn-secondary">← Previous</button>
+          {% else %}
+          <span></span>
+          {% endif %}
+          {% if loop.index < total_questions %}
+          <button type="submit" name="action" value="next" class="btn btn-primary">Next →</button>
+          {% else %}
+          <button type="submit" name="action" value="submit" class="btn btn-danger" onclick="return confirm('Submit exam?')">Submit exam</button>
+          {% endif %}
+        </div>
+      </form>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="/static/js/session.js"></script>
+{% endblock %}

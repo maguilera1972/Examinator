@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% block title %}Résultats — {{ target_user.first_name }} {{ target_user.last_name }} — Examinator{% endblock %}
+{% block content %}
+<div class="container" style="padding:2rem 1.5rem 3rem;">
+  <p style="margin-bottom:1rem;">
+    <a href="/admin" class="btn btn-ghost btn-sm">← Administration</a>
+    <a href="/admin/users/{{ target_user.id }}" class="btn btn-ghost btn-sm">Gérer l’accès</a>
+  </p>
+
+  <div class="page-header">
+    <h1>Résultats utilisateur</h1>
+    <p class="page-subtitle">Historique des simulations et exports PDF (administrateur).</p>
+  </div>
+
+  {% if request.query_params.get('error') %}
+  <div class="alert">{{ request.query_params.get('error') }}</div>
+  {% endif %}
+
+  <section class="profile-header info-panel">
+    <img
+      src="{{ gravatar_url(target_user.email, 96) }}"
+      alt=""
+      class="profile-avatar"
+      width="96"
+      height="96"
+      loading="lazy"
+      decoding="async"
+    >
+    <div class="profile-identity">
+      <h2>{{ target_user.first_name }} {{ target_user.last_name }}</h2>
+      <p class="profile-email">{{ target_user.email }}</p>
+      <p class="profile-meta">
+        Inscrit le {{ target_user.created_at.strftime('%d %B %Y') }}
+        · Statut : <span class="status-badge status-{{ target_user.status.value }}">{{ target_user.status.value }}</span>
+      </p>
+    </div>
+  </section>
+
+  <div class="profile-stats">
+    <article class="stat-card">
+      <span class="stat-value">{{ profile.stats.total }}</span>
+      <span class="stat-label">Total attempts</span>
+    </article>
+    <article class="stat-card stat-pass">
+      <span class="stat-value">{{ profile.stats.passed }}</span>
+      <span class="stat-label">Passed</span>
+    </article>
+    <article class="stat-card stat-fail">
+      <span class="stat-value">{{ profile.stats.failed }}</span>
+      <span class="stat-label">Below passing score</span>
+    </article>
+    <article class="stat-card">
+      <span class="stat-value">{{ profile.stats.exams_tried }}</span>
+      <span class="stat-label">Exams practiced</span>
+    </article>
+  </div>
+
+  {% if profile.by_exam %}
+  <div class="info-panel">
+    <h2>Export PDF par examen</h2>
+    <p class="page-subtitle" style="margin-top:0;margin-bottom:0.75rem;">
+      Téléchargez un rapport PDF regroupant toutes les tentatives de cet utilisateur pour un simulateur.
+    </p>
+    <div class="profile-exam-chips">
+      {% for item in profile.by_exam %}
+      <div class="exam-chip exam-chip-export">
+        <div class="exam-chip-body">
+          <span class="exam-chip-code">{{ item.code }}</span>
+          <span class="exam-chip-meta">{{ item.count }} attempt(s) · best {{ item.best_score }}%</span>
+        </div>
+        <a href="{{ item.export_url }}" class="btn btn-secondary btn-sm" download title="Export PDF {{ item.code }}">Export PDF</a>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="info-panel">
+    <h2>Simulation attempts</h2>
+    {% if profile.attempts %}
+    <div class="table-wrap">
+      <table class="history-table profile-attempts-table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Exam</th>
+            <th>Score</th>
+            <th>Result</th>
+            <th>Status</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for attempt in profile.attempts %}
+          <tr>
+            <td>
+              <time datetime="{{ attempt.started_at.isoformat() }}Z">
+                {{ attempt.started_at.strftime('%d %b %Y, %H:%M') }}
+              </time>
+            </td>
+            <td>
+              <span class="exam-code-inline">{{ attempt.exam_code }}</span>
+              <span class="exam-name-inline">{{ attempt.exam_name }}</span>
+            </td>
+            <td>{{ attempt.score_percent }}%</td>
+            <td>
+              {% if attempt.passed is true %}
+              <span class="badge badge-pass">Passed</span>
+              {% elif attempt.passed is false %}
+              <span class="badge badge-fail">Failed</span>
+              {% else %}
+              <span class="badge badge-progress">In progress</span>
+              {% endif %}
+            </td>
+            <td class="muted-cell">{{ attempt.status.replace('_', ' ') | title }}</td>
+            <td class="actions-cell">
+              <a href="{{ attempt.results_url }}" class="btn btn-secondary btn-sm">Voir résultats</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="empty-state">Aucune tentative de simulation pour cet utilisateur.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Examinator — IT Certification Exam Simulator{% endblock %}
+{% block content %}
+<div class="container">
+  <section class="hero">
+    <h1>IT Certification Exam Simulator</h1>
+    <p>Practice Microsoft, CompTIA, and custom IT certifications under real exam conditions. Pick a program, then a track, then start a timed simulation.</p>
+    {% if request.query_params.get('error') %}
+    <div class="alert" style="max-width:520px;margin:1rem auto 0;">{{ request.query_params.get('error') }}</div>
+    {% endif %}
+    {% if not user %}
+    <a href="/register" class="btn btn-primary">Get started — Register now</a>
+    {% endif %}
+  </section>
+
+  <div class="info-panel">
+    <h2>How it works</h2>
+    <ul>
+      <li><strong>Register</strong> with your name and email to track your progress over time.</li>
+      <li><strong>Choose a program</strong> — Microsoft, CompTIA, or a custom Examinator topic.</li>
+      <li><strong>Pick a track</strong> then select the exam you want to practice.</li>
+      <li><strong>Complete 50 questions</strong> in random order with detailed section feedback.</li>
+    </ul>
+  </div>
+
+  {% if user %}<div style="margin-bottom:1rem;"><a href="/profile" class="btn btn-secondary btn-sm">👤 My profile & history</a></div>{% endif %}
+
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.75rem;margin-bottom:1rem;">
+    <h2 class="level-heading" style="margin:0;">Simulator programs</h2>
+    <a href="/catalog" class="btn btn-secondary btn-sm">Full catalog →</a>
+  </div>
+  {% include "catalog/_program_hubs.html" %}
+
+  {% if user and history %}
+  <div class="info-panel" style="margin-top:2.5rem;">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.5rem;"><h2>Your recent sessions</h2><a href="/profile" class="btn btn-secondary btn-sm">Full profile →</a></div>
+    <table class="history-table">
+      <thead>
+        <tr><th>Exam</th><th>Date</th><th>Score</th><th>Result</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for s in history %}
+        <tr>
+          <td>{{ s.exam.code }}</td>
+          <td>{{ s.started_at.strftime('%Y-%m-%d %H:%M') }}</td>
+          <td>{{ s.score_percent }}%</td>
+          <td>{% if s.status.value == 'completed' %}Completed{% else %}{{ s.status.value }}{% endif %}</td>
+          <td><a href="/session/{{ s.id }}/results">View results</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

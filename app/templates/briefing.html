@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}{{ exam.code }} Briefing — Examinator{% endblock %}
+{% block content %}
+<div class="container" style="padding:2rem 1.5rem 3rem;">
+  <a href="{% if exam.family %}/catalog/{{ exam.family.code }}{% else %}/{% endif %}" style="color:var(--muted);font-size:0.9rem;">← Back to {% if exam.family %}{{ exam.family.name }}{% else %}exams{% endif %}</a>
+  <h1 style="margin:1rem 0 0.5rem;">{{ exam.code }}: {{ exam.name }}</h1>
+  <p style="color:var(--muted);margin-bottom:1rem;">Read carefully before starting your simulation.</p>
+  {% if exam.overview %}
+  <div class="info-panel" style="margin-bottom:1.5rem;">
+    <h2>About this certification</h2>
+    <p>{{ exam.overview }}</p>
+    {% if exam.learn_url %}<p style="margin-top:0.75rem;"><a href="{{ exam.learn_url }}" target="_blank" rel="noopener">View on Microsoft Learn →</a></p>{% endif %}
+  </div>
+  {% endif %}
+
+  {% if request.query_params.get('error') %}
+  <div class="alert">{{ request.query_params.get('error') }}</div>
+  {% endif %}
+
+
+  <div class="info-panel pool-info-panel">
+    <h2>Question pool status</h2>
+    <ul>
+      <li><strong>Pool size:</strong> {{ pool_stats.pool_count }} active questions available for random selection.</li>
+      {% if pool_stats.questions_updated_at %}
+      <li><strong>Last update:</strong>
+        <time datetime="{{ pool_stats.questions_updated_at.isoformat() }}Z">
+          {{ pool_stats.questions_updated_at.strftime('%d %B %Y at %H:%M') }} UTC
+        </time>
+      </li>
+      <li><strong>Update source:</strong> {{ pool_stats.questions_update_source_label }} — matches the date questions were fetched or imported for this exam.</li>
+      {% else %}
+      <li><strong>Last update:</strong> No synchronized question import recorded yet for this exam.</li>
+      {% endif %}
+    </ul>
+  </div>
+
+  <div class="info-panel">
+    <h2>Exam simulation rules</h2>
+    <ul>
+      <li><strong>Language:</strong> English (same as the real certification exam).</li>
+      <li><strong>Duration:</strong> {{ exam.duration_minutes }} minutes — the timer starts when you begin. The session auto-submits when time expires.</li>
+      <li><strong>Questions:</strong> {{ q_count }} questions selected randomly from the question pool, in shuffled order.</li>
+      <li><strong>Question types:</strong> Single-answer (radio) or multiple-answer (checkbox) depending on each item.</li>
+      <li><strong>Navigation:</strong> Use Previous/Next or the question grid. You may change answers until you submit or time runs out.</li>
+      <li><strong>Passing score:</strong> {{ exam.passing_score }} / 1000 on the real exam (this simulation shows percentage for practice).</li>
+      <li><strong>Results:</strong> After submission, you will see overall score and a breakdown by exam section to identify areas for revision.</li>
+    </ul>
+  </div>
+
+  <div class="info-panel">
+    <h2>Exam sections & weighting</h2>
+    <p style="color:var(--muted);margin-bottom:1rem;font-size:0.9rem;">These modules match the official skills outline. Your results will be grouped by section.</p>
+    <div class="section-list">
+      {% for s in sections %}
+      <div class="section-item">
+        <div>
+          <span>{{ s.name }}</span>
+          {% if s.description %}<p style="color:var(--muted);font-size:0.85rem;margin-top:0.25rem;">{{ s.description }}</p>{% endif %}
+        </div>
+        <span style="color:var(--muted);" title="Normalized weight for simulation scoring">
+          {% if s.description and 'Official Microsoft Learn weight:' in s.description %}
+          {{ s.description.split('Official Microsoft Learn weight:')[1].split('.')[0].strip() }}
+          {% else %}
+          {{ s.weight_percent|int }}%
+          {% endif %}
+        </span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="info-panel">
+    <h2>Simulation window behaviour</h2>
+    <ul>
+      <li>The <strong>timer</strong> is displayed at the top left and counts down in real time.</li>
+      <li>The <strong>question navigator</strong> shows all question numbers; answered items are highlighted in green.</li>
+      <li>Click an option to select it. For multiple-answer questions, select all that apply.</li>
+      <li>Click <strong>Submit exam</strong> when finished, or wait for the timer to end.</li>
+    </ul>
+  </div>
+
+  <form method="post" action="/exam/{{ exam.id }}/start" style="margin-top:1.5rem;">
+    <button type="submit" class="btn btn-primary" style="font-size:1.1rem;padding:0.85rem 2rem;">
+      I understand — Start exam simulation
+    </button>
+  </form>
+</div>
+{% endblock %}

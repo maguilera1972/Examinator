@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}Certification tracks — Examinator{% endblock %}
+{% block content %}
+<div class="container">
+  {% if request.query_params.get('error') == 'access_denied' %}<div class="alert" style="margin-top:1rem;">Vous n avez pas acces a ce simulateur. Contactez l administrateur.</div>{% endif %}
+  <section class="hero">
+    <h1>Certification tracks</h1>
+    <p>Choose a publisher or subject area, then a track. Individual exams are listed on the next screen.</p>
+  </section>
+
+  <h2 class="level-heading">Simulator programs</h2>
+  {% include "catalog/_program_hubs.html" %}
+
+  <section class="vendor-section" style="margin-top:2rem;">
+    <div class="vendor-section-header">
+      <div class="vendor-section-brand">
+        {% if catalog.microsoft.logo_url %}
+        <img src="{{ catalog.microsoft.logo_url }}" alt="" class="vendor-logo" width="52" height="52" loading="lazy">
+        {% endif %}
+        <div>
+          <span class="vendor-badge vendor-badge-microsoft">Microsoft</span>
+          <h2>Microsoft tracks</h2>
+        </div>
+      </div>
+      <a href="/catalog/vendor/microsoft" class="btn btn-ghost btn-sm">View all →</a>
+    </div>
+    <div class="family-grid family-grid-compact">
+      {% for item in catalog.microsoft.families %}
+      {% set fam = item.family %}
+      <article class="family-card family-card-compact">
+        <span class="family-code">{{ fam.code }}</span>
+        <h3><a href="/catalog/{{ fam.code }}">{{ fam.name }}</a></h3>
+        <div class="family-meta">
+          <span>{{ item.exam_count }} exam{{ 's' if item.exam_count != 1 else '' }}</span>
+          {% if item.simulatable_count %}<span class="family-sim">{{ item.simulatable_count }} ready</span>{% endif %}
+        </div>
+      </article>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="vendor-section">
+    <div class="vendor-section-header">
+      <div class="vendor-section-brand">
+        {% if catalog.comptia.logo_url %}
+        <img src="{{ catalog.comptia.logo_url }}" alt="" class="vendor-logo vendor-logo-wide" width="120" height="36" loading="lazy">
+        {% endif %}
+        <div>
+          <span class="vendor-badge vendor-badge-comptia">CompTIA</span>
+          <h2>CompTIA tracks</h2>
+        </div>
+      </div>
+      <a href="/catalog/vendor/comptia" class="btn btn-ghost btn-sm">View all →</a>
+    </div>
+    <div class="family-grid family-grid-compact">
+      {% for item in catalog.comptia.families %}
+      {% set fam = item.family %}
+      <article class="family-card family-card-compact">
+        <span class="family-code">{{ fam.code }}</span>
+        <h3><a href="/catalog/{{ fam.code }}">{{ fam.name }}</a></h3>
+        <div class="family-meta">
+          <span>{{ item.exam_count }} exam{{ 's' if item.exam_count != 1 else '' }}</span>
+          {% if item.simulatable_count %}<span class="family-sim">{{ item.simulatable_count }} ready</span>{% endif %}
+        </div>
+      </article>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="vendor-section vendor-section-topics">
+    <div class="vendor-section-header">
+      <div class="vendor-section-brand">
+        {% if catalog.topics.logo_url %}
+        <img src="{{ catalog.topics.logo_url }}" alt="" class="vendor-logo" width="52" height="52" loading="lazy">
+        {% endif %}
+        <div>
+          <span class="vendor-badge vendor-badge-topics">Simulations par sujet</span>
+          <h2>Custom subject tracks</h2>
+        </div>
+      </div>
+      <a href="/catalog/topics" class="btn btn-ghost btn-sm">View all →</a>
+    </div>
+    <div class="family-grid family-grid-compact">
+      {% for item in catalog.topics.families %}
+      {% set fam = item.family %}
+      <article class="family-card family-card-compact topic-card">
+        {% if fam.poster_url %}
+        <img src="{{ fam.poster_url }}" alt="" class="topic-icon topic-icon-sm" width="32" height="32" loading="lazy">
+        {% endif %}
+        <span class="family-code">{{ fam.code }}</span>
+        <h3><a href="/catalog/{{ fam.code }}">{{ fam.name }}</a></h3>
+        <div class="family-meta">
+          <span>{{ item.exam_count }} simulation{{ 's' if item.exam_count != 1 else '' }}</span>
+          {% if item.simulatable_count %}<span class="family-sim">{{ item.simulatable_count }} ready</span>{% endif %}
+        </div>
+      </article>
+      {% endfor %}
+    </div>
+  </section>
+</div>
+{% endblock %}

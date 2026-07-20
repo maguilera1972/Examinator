@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}Modifier {{ exam.code }} — Administration{% endblock %}
+{% block content %}
+<div class="container" style="padding:2rem 1.5rem 3rem;max-width:720px;">
+  <p style="margin-bottom:1rem;">
+    <a href="/admin?section=exams" class="btn btn-ghost btn-sm">← Retour à l’administration</a>
+  </p>
+  <h1>Modifier l’examen</h1>
+  <p style="color:var(--muted);margin-bottom:1.5rem;">{{ exam.code }} — {{ exam.name }}</p>
+
+  {% if request.query_params.get('ok') %}
+  <div class="alert alert-success">{{ request.query_params.get('ok') }}</div>
+  {% endif %}
+  {% if request.query_params.get('error') %}
+  <div class="alert">{{ request.query_params.get('error') }}</div>
+  {% endif %}
+
+  <section class="info-panel">
+    <form method="post" action="/admin/exams/{{ exam.id }}" class="admin-form">
+      <div class="form-group"><label>Code examen</label><input name="code" value="{{ exam.code }}" required></div>
+      <div class="form-group"><label>Titre</label><input name="name" value="{{ exam.name }}" required></div>
+      <div class="form-group">
+        <label>Catégorie (catalogue)</label>
+        <select name="family_id">
+          <option value="">— Sans catégorie (orphelins du programme) —</option>
+          {% for fam in families %}
+          <option value="{{ fam.id }}"{% if exam.family_id == fam.id %} selected{% endif %}>
+            [{{ fam.vendor }}] {{ fam.code }} — {{ fam.name }}
+          </option>
+          {% endfor %}
+        </select>
+        <p style="color:var(--muted);font-size:0.85rem;margin-top:0.35rem;">
+          Le programme (vendor) suit automatiquement la catégorie choisie.
+        </p>
+      </div>
+      <input type="hidden" name="vendor" value="{{ exam.vendor }}">
+      <div class="form-group"><label>Durée (min)</label><input name="duration_minutes" type="number" min="1" value="{{ exam.duration_minutes }}" required></div>
+      <div class="form-group"><label>Score de réussite</label><input name="passing_score" type="number" min="0" max="1000" value="{{ exam.passing_score }}" required></div>
+      <div class="form-group"><label>Questions par session</label><input name="questions_per_session" type="number" min="1" value="{{ exam.questions_per_session }}" required></div>
+      <div class="form-group"><label>Niveau</label><input name="level" value="{{ exam.level or '' }}" placeholder="Fundamentals, Associate, Practice…"></div>
+      <div class="form-group"><label>Rôle</label><input name="role" value="{{ exam.role or '' }}"></div>
+      <div class="form-group"><label>Produit</label><input name="product" value="{{ exam.product or '' }}"></div>
+      <div class="form-group"><label>URL Learn</label><input name="learn_url" value="{{ exam.learn_url or '' }}" placeholder="https://learn.microsoft.com/…"></div>
+      <div class="form-group"><label>Description courte</label><textarea name="description" rows="3">{{ exam.description or '' }}</textarea></div>
+      <div class="form-group"><label>Aperçu / overview</label><textarea name="overview" rows="4">{{ exam.overview or '' }}</textarea></div>
+      <div class="form-group">
+        <label style="display:flex;align-items:center;gap:0.5rem;font-weight:normal;">
+          <input type="checkbox" name="is_active" value="1"{% if exam.is_active %} checked{% endif %}>
+          Examen actif (visible dans le catalogue)
+        </label>
+      </div>
+      <div style="display:flex;gap:0.75rem;flex-wrap:wrap;align-items:center;">
+        <button type="submit" class="btn btn-primary">Enregistrer</button>
+        <a href="/admin" class="btn btn-secondary">Annuler</a>
+      </div>
+    </form>
+  </section>
+
+  <section class="info-panel" style="margin-top:1.5rem;">
+    <h2>Pool de questions</h2>
+    <p style="color:var(--muted);font-size:0.9rem;margin-bottom:1rem;">
+      Questions actives : <strong>{{ pool.pool_count }}</strong>
+      · Total en base (actives + inactives) : <strong>{{ total_questions }}</strong>
+      · Dernière mise à jour :
+      {% if exam.questions_updated_at %}{{ exam.questions_updated_at.strftime('%d %b %Y %H:%M') }} UTC{% else %}—{% endif %}
+      {% if pool.questions_update_source_label and pool.questions_update_source_label != 'Unknown' %}
+      ({{ pool.questions_update_source_label }})
+      {% endif %}
+    </p>
+    <p style="color:var(--muted);font-size:0.9rem;margin-bottom:1rem;">
+      Pour remplacer une banque obsolète : videz le pool, puis importez un nouveau fichier Excel ou JSON
+      depuis la page Administration.
+    </p>
+    <form method="post" action="/admin/exams/{{ exam.id }}/clear-pool" onsubmit="return confirm('Vider définitivement le pool de {{ exam.code }} ?\n\n• Toutes les questions seront supprimées\n• L’historique des sessions de cet examen sera effacé\n• L’examen, ses sections et ses sources restent en place');">
+      <input type="hidden" name="return_to" value="edit">
+      <button type="submit" class="btn btn-secondary"{% if total_questions == 0 %} disabled{% endif %}>
+        Vider le pool de questions
+      </button>
+    </form>
+  </section>
+
+  <section class="info-panel" style="margin-top:1.5rem;border-color:var(--danger);">
+    <h2 style="color:var(--danger);">Zone dangereuse</h2>
+    <p style="color:var(--muted);font-size:0.9rem;margin-bottom:1rem;">
+      Supprime définitivement cet examen, ses questions, sources, accès utilisateurs et l’historique des sessions associées.
+      Cette action est irréversible.
+    </p>
+    <form method="post" action="/admin/exams/{{ exam.id }}/delete" onsubmit="return confirm('Supprimer définitivement {{ exam.code }} et toutes ses données associées ?');">
+      <button type="submit" class="btn btn-danger">Supprimer l’examen</button>
+    </form>
+  </section>
+</div>
+{% endblock %}

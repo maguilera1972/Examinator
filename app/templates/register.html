@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Register — Examinator{% endblock %}
+{% block content %}
+<div class="container">
+  <div class="form-card">
+    <h1 style="margin-bottom:0.5rem;font-size:1.5rem;">Create your account</h1>
+    <p style="color:var(--muted);margin-bottom:1.5rem;">Register to request access to exam simulators. An administrator will validate your account and assign the exams you are allowed to use.</p>
+    {% if error %}<div class="alert">{{ error }}</div>{% endif %}
+    <form method="post" action="/register">
+      <div class="form-group">
+        <label for="first_name">First name</label>
+        <input type="text" id="first_name" name="first_name" required autocomplete="given-name">
+      </div>
+      <div class="form-group">
+        <label for="last_name">Last name</label>
+        <input type="text" id="last_name" name="last_name" required autocomplete="family-name">
+      </div>
+      <div class="form-group">
+        <label for="email">Email address</label>
+        <input type="email" id="email" name="email" required autocomplete="email">
+      </div>
+      <button type="submit" class="btn btn-primary btn-block">Submit registration request</button>
+    </form>
+    <p style="margin-top:1rem;text-align:center;font-size:0.9rem;color:var(--muted);">
+      Already registered? Enter the same email to sign in.
+    </p>
+  </div>
+</div>
+{% endblock %}

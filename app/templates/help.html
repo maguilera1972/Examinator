@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}User guide — Examinator{% endblock %}
+{% block content %}
+<div class="container" style="padding:2rem 1.5rem 3rem;max-width:820px;">
+  <div class="page-header">
+    <h1>User guide</h1>
+    <p class="page-subtitle">Download the Examinator manual in your preferred language.</p>
+  </div>
+
+  {% if request.query_params.get('error') %}
+  <div class="alert">{{ request.query_params.get('error') }}</div>
+  {% endif %}
+
+  <section class="info-panel help-ui-note">
+    <h2>Interface language</h2>
+    <p>
+      The Examinator simulator user interface (menus, buttons, exam screens, results)
+      is available <strong>in English only</strong>. Manuals below are provided in several
+      languages to help you get started; labels inside the application remain in English.
+    </p>
+  </section>
+
+  <section class="info-panel">
+    <h2>Download the PDF manual</h2>
+    <p style="color:var(--muted);margin-bottom:1.25rem;">
+      Choose a language below to download the user manual as a PDF.
+    </p>
+    <div class="help-lang-grid">
+      {% for lang in languages %}
+      <a href="{{ lang.url }}" class="help-lang-card" download>
+        <span class="help-lang-flag" aria-hidden="true">{{ lang.flag }}</span>
+        <span class="help-lang-label">{{ lang.label }}</span>
+        <span class="help-lang-action">Download PDF</span>
+      </a>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="info-panel">
+    <h2>What the guide covers</h2>
+    <ul class="help-topics">
+      <li>Registration and sign-in (email, no password)</li>
+      <li>Administrator approval and exam access</li>
+      <li>Searching simulators with the sidebar keyword bar</li>
+      <li>Browsing certification tracks and starting a simulation</li>
+      <li>Timed exam session, results and question review</li>
+      <li>Profile history, PDF result export and calendar</li>
+    </ul>
+    <p style="color:var(--muted);margin-top:1rem;font-size:0.9rem;">
+      Each PDF includes branded screenshots of the main screens and reminds you that
+      the simulator UI is <strong>English only</strong>.
+    </p>
+  </section>
+</div>
+{% endblock %}

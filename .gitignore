@@ -1,0 +1,38 @@
+# Python
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Runtime / secrets
+.env
+.env.*
+!.env.example
+data/*.db
+data/*.db-*
+data/excel-templates/
+*.sqlite3
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*~
+
+# Logs / temp
+*.log
+tmp/
+/tmp/
+
+# Playwright / capture artifacts (optional local)
+.playwright/
+app/static/docs/manuals/*_v9.pdf

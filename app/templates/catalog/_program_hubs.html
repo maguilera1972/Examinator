@@ -1,0 +1,65 @@
+<div class="program-hub-grid">
+  {% for hub in program_hubs %}
+  <a href="{{ hub.hub_url }}" class="program-hub-card program-hub-{{ hub.hub_kind }}">
+    <div class="program-hub-card-head">
+      {% if hub.logo_url %}
+      <img
+        src="{{ hub.logo_url }}"
+        alt=""
+        class="program-hub-logo{% if hub.hub_kind == 'comptia' %} program-hub-logo-wide{% endif %}"
+        width="{% if hub.hub_kind == 'comptia' %}120{% else %}52{% endif %}"
+        height="{% if hub.hub_kind == 'comptia' %}36{% else %}52{% endif %}"
+        loading="lazy"
+      >
+      {% endif %}
+      <span class="vendor-badge{% if hub.hub_kind == 'microsoft' %} vendor-badge-microsoft{% elif hub.hub_kind == 'comptia' %} vendor-badge-comptia{% elif hub.hub_kind == 'topics' %} vendor-badge-topics{% endif %}">{{ hub.hub_label }}</span>
+    </div>
+    <h3 class="program-hub-title">
+      {%- if hub.hub_kind == 'topics' -%}Programmes personnalisés
+      {%- else -%}{{ hub.hub_label }} certifications
+      {%- endif -%}
+    </h3>
+    <p class="program-hub-desc">{{ hub.description }}</p>
+    <div class="program-hub-meta">
+      {% if hub.families %}
+      <span>{{ hub.families|length }} track{{ 's' if hub.families|length != 1 else '' }}</span>
+      {% elif hub.family_count %}
+      <span>{{ hub.family_count }} track{{ 's' if hub.family_count != 1 else '' }}</span>
+      {% endif %}
+      <span>{{ hub.exam_count }} exam{{ 's' if hub.exam_count != 1 else '' }}</span>
+      {% if hub.simulatable_count %}
+      <span class="family-sim">{{ hub.simulatable_count }} simulation{{ 's' if hub.simulatable_count != 1 else '' }}</span>
+      {% endif %}
+    </div>
+    <span class="program-hub-cta">Choose a track →</span>
+  </a>
+  {% else %}
+  <a href="/catalog/vendor/microsoft" class="program-hub-card program-hub-microsoft">
+    <div class="program-hub-card-head">
+      <img src="/static/img/vendors/microsoft.svg" alt="" class="program-hub-logo" width="52" height="52" loading="lazy">
+      <span class="vendor-badge vendor-badge-microsoft">Microsoft</span>
+    </div>
+    <h3 class="program-hub-title">Microsoft certifications</h3>
+    <p class="program-hub-desc">Azure, AI, security, M365, data, and more.</p>
+    <span class="program-hub-cta">Choose a track →</span>
+  </a>
+  <a href="/catalog/vendor/comptia" class="program-hub-card program-hub-comptia">
+    <div class="program-hub-card-head">
+      <img src="/static/img/vendors/comptia.svg" alt="" class="program-hub-logo program-hub-logo-wide" width="120" height="36" loading="lazy">
+      <span class="vendor-badge vendor-badge-comptia">CompTIA</span>
+    </div>
+    <h3 class="program-hub-title">CompTIA certifications</h3>
+    <p class="program-hub-desc">A+, Network+, Security+, Cloud+, CySA+, DataAI, and more.</p>
+    <span class="program-hub-cta">Choose a track →</span>
+  </a>
+  <a href="/catalog/topics" class="program-hub-card program-hub-topics">
+    <div class="program-hub-card-head">
+      <img src="/static/img/vendors/examinator.svg" alt="" class="program-hub-logo" width="52" height="52" loading="lazy">
+      <span class="vendor-badge vendor-badge-topics">Simulations par sujet</span>
+    </div>
+    <h3 class="program-hub-title">Programmes personnalisés</h3>
+    <p class="program-hub-desc">Cloud, cybersécurité, DevOps, IA, réseaux, bases de données, etc.</p>
+    <span class="program-hub-cta">Choose a track →</span>
+  </a>
+  {% endfor %}
+</div>

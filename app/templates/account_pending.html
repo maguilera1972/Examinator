@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Acces en attente — Examinator{% endblock %}
+{% block content %}
+<div class="container">
+  <div class="form-card">
+    <h1 style="margin-bottom:0.5rem;font-size:1.5rem;">Demande en cours de validation</h1>
+    <p style="color:var(--muted);margin-bottom:1rem;">
+      Merci {{ user.first_name }}. Votre compte <strong>{{ user.email }}</strong> a bien ete cree.
+    </p>
+    <p style="color:var(--muted);margin-bottom:1.5rem;">
+      Un administrateur doit valider votre acces et selectionner les simulateurs d examens auxquels vous avez droit.
+      Vous recevrez l acces des que votre demande sera approuvee.
+    </p>
+    <a href="/catalog" class="btn btn-secondary btn-block">Parcourir le catalogue</a>
+    <form action="/logout" method="post" style="margin-top:0.75rem;">
+      <button type="submit" class="btn btn-ghost btn-block">Se deconnecter</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

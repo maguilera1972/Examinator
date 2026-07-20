@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}{{ family.name }} — Examinator{% endblock %}
+{% block content %}
+<div class="container">
+  <a href="{% if family.vendor == 'Examinator' %}/catalog/topics{% elif family.vendor == 'Microsoft' %}/catalog/vendor/microsoft{% elif family.vendor == 'CompTIA' %}/catalog/vendor/comptia{% else %}/catalog/vendor/{{ vendor_slug }}{% endif %}" style="color:var(--muted);font-size:0.9rem;">← {% if family.vendor == 'Examinator' %}Simulations par sujet{% elif family.vendor == 'Microsoft' %}Microsoft tracks{% elif family.vendor == 'CompTIA' %}CompTIA tracks{% else %}{{ family.vendor }}{% endif %}</a>
+  <section class="hero" style="padding-top:1.5rem;">
+    {% if family.vendor == 'Examinator' and family.poster_url %}
+    <img src="{{ family.poster_url }}" alt="" class="topic-icon topic-icon-hero" width="56" height="56" loading="lazy">
+    {% endif %}
+    <span class="vendor-badge{% if family.vendor == 'Microsoft' %} vendor-badge-microsoft{% elif family.vendor == 'CompTIA' %} vendor-badge-comptia{% elif family.vendor == 'Examinator' %} vendor-badge-topics{% endif %}">{{ 'Simulation' if family.vendor == 'Examinator' else family.vendor }}</span>
+    <h1>{{ family.name }}</h1>
+    <p class="family-theme-inline">{{ family.theme }}</p>
+    <p style="max-width:720px;margin:0.75rem auto 0;">{{ family.description }}</p>
+    <p style="max-width:720px;margin:0.5rem auto 0;color:var(--muted);font-size:0.92rem;">Select an exam below to view details and start a simulation.</p>
+  </section>
+
+  {% for level, level_entries in by_level.items() %}
+  <h2 class="level-heading">{{ level }}</h2>
+  <div class="exam-grid">
+    {% for entry in level_entries %}
+    {% set exam = entry.exam %}
+    {% set stats = entry.stats %}
+    <article class="exam-card">
+      <span class="exam-code">{{ exam.code }}</span>
+      {% if exam.level %}<span class="exam-level-badge">{{ exam.level }}</span>{% endif %}
+      <h3>{{ exam.name }}</h3>
+      {% if exam.role or exam.product %}
+      <p class="exam-role">{{ exam.product }}{% if exam.role %} · {{ exam.role }}{% endif %}</p>
+      {% endif %}
+      {% if exam.overview %}
+      <p class="exam-overview">{{ exam.overview[:220] }}{% if exam.overview|length > 220 %}…{% endif %}</p>
+      {% endif %}
+      {% if exam.sections %}
+      <div class="section-preview">
+        <strong>Skills measured</strong>
+        <ul>
+          {% for s in exam.sections|sort(attribute='sort_order') %}
+          <li>{{ s.name }}{% if s.weight_percent %} ({{ s.weight_percent|int }}%){% endif %}</li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+      <div class="exam-meta">
+        <span>⏱ {{ exam.duration_minutes }} min</span>
+        <span>🎯 {{ exam.passing_score }}/1000</span>
+        {% if stats.pool_count %}<span>📚 {{ stats.pool_count }} questions</span>{% endif %}
+      </div>
+      <div class="exam-card-actions">
+        {% if exam.learn_url %}
+        <a href="{{ exam.learn_url }}" class="btn btn-ghost btn-sm" target="_blank" rel="noopener">
+          {%- if family.vendor == 'Microsoft' -%}Microsoft Learn
+          {%- elif family.vendor == 'CompTIA' -%}CompTIA.org
+          {%- else -%}Official page
+          {%- endif -%}
+        </a>
+        {% endif %}
+        {% if user and stats.pool_count and exam.id in allowed_exam_ids %}
+        <a href="/exam/{{ exam.id }}/briefing" class="btn btn-primary btn-sm">{% if family.vendor == 'Examinator' %}Lancer la simulation{% else %}Start simulation{% endif %}</a>
+        {% elif user and stats.pool_count and user_is_pending %}
+        <span class="btn btn-secondary btn-sm" style="opacity:0.7;cursor:default;">En attente de validation</span>
+        {% elif user and stats.pool_count and user_is_approved %}
+        <span class="btn btn-secondary btn-sm" style="opacity:0.7;cursor:default;">Acces non autorise</span>
+        {% elif user and stats.pool_count %}
+        <span class="btn btn-secondary btn-sm" style="opacity:0.7;cursor:default;">Acces requis</span>
+        {% elif user %}
+        <span class="btn btn-secondary btn-sm" style="opacity:0.6;cursor:default;">{% if family.vendor == 'Examinator' %}Banque en préparation{% else %}Pool not ready{% endif %}</span>
+        {% else %}
+        <a href="/register" class="btn btn-secondary btn-sm">Register to practice</a>
+        {% endif %}
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p style="color:var(--muted);">No exams in this family yet.</p>
+  {% endfor %}
+</div>
+{% endblock %}
