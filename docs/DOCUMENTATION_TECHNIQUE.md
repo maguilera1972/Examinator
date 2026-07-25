@@ -364,7 +364,17 @@ Thème de page : helper `page_section(path)` dans `templating.py`.
 
 ## 12. Installation et exécution
 
-### 12.1 Développement
+### 12.1 Script d’installation (recommandé)
+
+Voir [`docs/INSTALLATION.md`](INSTALLATION.md) et `scripts/install_examinator.sh`.
+
+```bash
+git clone https://git.aguilera.ch/Aguilera_Lab/Examinator.git
+cd Examinator
+sudo ./scripts/install_examinator.sh --admin-email admin@example.com
+```
+
+### 12.2 Développement manuel
 
 ```bash
 cd /opt/exam-simulator
@@ -382,10 +392,10 @@ PYTHONPATH=/opt/exam-simulator ./venv/bin/uvicorn app.main:app --host 0.0.0.0 --
 
 Ouvrir : <http://localhost:8000>
 
-### 12.2 Production (systemd)
+### 12.3 Production (systemd)
 
 ```bash
-sudo /opt/exam-simulator/deploy/install-systemd.sh
+sudo INSTALL_DIR=/opt/exam-simulator /opt/exam-simulator/deploy/install-systemd.sh
 systemctl status exam-simulator
 systemctl restart exam-simulator
 journalctl -u exam-simulator -f
@@ -398,7 +408,7 @@ Unité (`deploy/exam-simulator.service`) :
 - `ExecStart=.../venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000`
 - `Restart=always`
 
-Nginx optionnel : `deploy/nginx-exam-simulator.conf` (proxy vers `127.0.0.1:8000`, `client_max_body_size 20M`).
+Nginx optionnel : `deploy/nginx-exam-simulator.conf` (proxy vers le service local sur le port 8000).
 
 ---
 
@@ -406,6 +416,7 @@ Nginx optionnel : `deploy/nginx-exam-simulator.conf` (proxy vers `127.0.0.1:8000
 
 | Script | Rôle |
 |--------|------|
+| `scripts/install_examinator.sh` | Installation complète depuis le dépôt (venv, `.env`, seed, systemd) |
 | `scripts/seed_data.py` | Sync catalogue Microsoft + seed des pools |
 | `scripts/quality_check.py` | Contrôle fingerprints / dédoublonnage (cron) |
 | `scripts/repair_pools.py` | Dédoublonnage + recomplétion des pools courts |

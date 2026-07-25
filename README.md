@@ -6,6 +6,9 @@ Web platform for Microsoft and IT certification exam practice
 **Documentation technique complète** :
 [`docs/DOCUMENTATION_TECHNIQUE.md`](docs/DOCUMENTATION_TECHNIQUE.md)
 
+**Installation automatisée** :
+[`scripts/install_examinator.sh`](scripts/install_examinator.sh) — voir aussi [`docs/INSTALLATION.md`](docs/INSTALLATION.md)
+
 ---
 
 ## Features
@@ -26,56 +29,76 @@ Web platform for Microsoft and IT certification exam practice
 | Item | Requirement |
 |------|-------------|
 | OS | Linux (tested on Proxmox LXC) |
-| Python | **3.13** |
-| Fonts (PDF manuals) | `fonts-dejavu-core` |
+| Python | **3.13** (3.11+ may work; installer prefers 3.13) |
+| Privileges | root / sudo for full install |
 | Optional | nginx reverse proxy |
 
 ---
 
-## Fresh install
+## Fresh install (recommended)
 
 ```bash
-# 1. Clone
+git clone https://git.aguilera.ch/Aguilera_Lab/Examinator.git
+cd Examinator
+sudo ./scripts/install_examinator.sh --admin-email you@example.com
+```
+
+The installer will:
+
+1. Sync or use the checkout under `/opt/exam-simulator` (default)
+2. Install system packages (Python venv, DejaVu fonts, …)
+3. Create `venv/` and install `requirements.txt`
+4. Create `data/` + `.env` (random `SECRET_KEY`)
+5. Seed the catalog
+6. Generate PDF manuals (when possible)
+7. Install and start `exam-simulator.service`
+
+Clone directly into the target directory:
+
+```bash
+sudo ./scripts/install_examinator.sh --clone --dir /opt/exam-simulator --admin-email you@example.com
+```
+
+Useful flags: `--skip-seed`, `--skip-systemd`, `--skip-manuals`, `--non-interactive`, `--help`.
+
+Open: http://localhost:8000  
+Register with the e-mail set in `ADMIN_EMAIL` to get administrator access.
+
+Full guide: [`docs/INSTALLATION.md`](docs/INSTALLATION.md).
+
+---
+
+## Manual install (alternative)
+
+```bash
 sudo mkdir -p /opt
 sudo git clone https://git.aguilera.ch/Aguilera_Lab/Examinator.git /opt/exam-simulator
 cd /opt/exam-simulator
 
-# 2. Python venv + dependencies
 python3 -m venv venv
 ./venv/bin/pip install -r requirements.txt
-
-# 3. System fonts (user manuals)
-sudo apt-get update
 sudo apt-get install -y fonts-dejavu-core
 
-# 4. Runtime data + config
 mkdir -p data
 cp .env.example .env
 # Edit .env — at least ADMIN_EMAIL and SECRET_KEY
-nano .env
 
-# 5. Branding assets (logo / favicon) if available
-# ./scripts/install_branding.sh
-
-# 6. Seed catalog (Microsoft / CompTIA / topics)
 PYTHONPATH=/opt/exam-simulator ./venv/bin/python scripts/seed_data.py
-
-# 7. (Optional) Generate user manuals
-PYTHONPATH=/opt/exam-simulator ./venv/bin/python scripts/generate_user_manuals.py
-
-# 8. Run (dev)
-PYTHONPATH=/opt/exam-simulator ./venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000
+sudo ./deploy/install-systemd.sh
 ```
 
-Open: http://localhost:8000  
-Register with the e-mail set in `ADMIN_EMAIL` to get administrator access.
+Dev run without systemd:
+
+```bash
+PYTHONPATH=/opt/exam-simulator ./venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
 
 ---
 
 ## Production (systemd)
 
 ```bash
-sudo /opt/exam-simulator/deploy/install-systemd.sh
+sudo INSTALL_DIR=/opt/exam-simulator /opt/exam-simulator/deploy/install-systemd.sh
 systemctl status exam-simulator
 journalctl -u exam-simulator -f
 ```
@@ -92,13 +115,13 @@ systemctl restart exam-simulator
 
 ## Configuration
 
-Copy `.env.example` → `.env`. Main variables:
+Copy `.env.example` → `.env` (or let the installer create it). Main variables:
 
 | Variable | Purpose |
 |----------|---------|
 | `DATABASE_URL` | SQLite path (default under `/opt/exam-simulator/data/`) |
 | `ADMIN_EMAIL` | Sole administrator identity |
-| `SECRET_KEY` | Reserved (set a strong value for future use) |
+| `SECRET_KEY` | Set a strong random value |
 | `QUESTIONS_PER_SESSION` | Default session size |
 | `SESSION_COOKIE` | Auth cookie name |
 
@@ -146,11 +169,7 @@ JSON format:
 
 ## Sync Microsoft catalog
 
-```bash
-curl -X POST http://localhost:8000/api/admin/sync/microsoft
-```
-
-(Admin session cookie required for API admin routes; prefer the **Sync Microsoft** tab in the admin UI.)
+Prefer the **Sync Microsoft** tab in the admin UI (administrator session required).
 
 External scrapers (ExamTopics, etc.) are stubs — import converted files manually.
 
@@ -186,8 +205,8 @@ PYTHONPATH=/opt/exam-simulator ./venv/bin/python -m pytest tests/ -q
 ```
 app/          FastAPI application (routes, services, templates, static)
 deploy/       systemd unit + nginx sample
-docs/         Technical documentation
-scripts/      Seed, sync, manuals, quality tools
+docs/         Technical documentation + Excel template
+scripts/      Installer, seed, sync, manuals, quality tools
 tests/        pytest suite
 requirements.txt
 .env.example

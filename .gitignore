@@ -32,6 +32,7 @@ Thumbs.db
 *.log
 tmp/
 /tmp/
+deploy/*.service.installed
 
 # Playwright / capture artifacts (optional local)
 .playwright/
