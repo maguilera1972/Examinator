@@ -53,6 +53,8 @@ def migrate_schema():
                 conn.execute(text("UPDATE users SET status = 'approved'"))
             if "approved_at" not in ucols:
                 conn.execute(text("ALTER TABLE users ADD COLUMN approved_at DATETIME"))
+            if "full_access" not in ucols:
+                conn.execute(text("ALTER TABLE users ADD COLUMN full_access BOOLEAN NOT NULL DEFAULT 0"))
     Base.metadata.create_all(bind=engine)
     _backfill_question_dates()
     _backfill_user_access()

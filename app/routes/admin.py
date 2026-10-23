@@ -572,6 +572,7 @@ def admin_user_access(user_id: int, request: Request, db: Session = Depends(get_
         "target_user": target,
         "exams": exams,
         "allowed_exam_ids": access["allowed_exam_ids"],
+        "full_access_flag": access["full_access_flag"],
     }, user=admin)
 
 
@@ -632,12 +633,14 @@ async def admin_approve_user(user_id: int, request: Request, db: Session = Depen
         return redirect
     form = await request.form()
     exam_ids = [int(v) for v in form.getlist("exam_ids")]
+    full_access = form.get("full_access") == "1"
     try:
-        user = approve_user(db, user_id, exam_ids)
+        user = approve_user(db, user_id, exam_ids, full_access=full_access)
     except ValueError as exc:
         return RedirectResponse(url=f"/admin/users/{user_id}?error={quote(str(exc))}", status_code=303)
     name = f"{user.first_name} {user.last_name}"
-    return _admin_redirect(ok=f"Acces approuve pour {name}", section="users")
+    suffix = " (acces complet a tous les simulateurs)" if full_access else ""
+    return _admin_redirect(ok=f"Acces approuve pour {name}{suffix}", section="users")
 
 
 @router.post("/users/{user_id}/reject")
@@ -660,8 +663,15 @@ async def admin_update_user_access(user_id: int, request: Request, db: Session =
         return redirect
     form = await request.form()
     exam_ids = [int(v) for v in form.getlist("exam_ids")]
+    full_access = form.get("full_access") == "1"
+    section = form.get("admin_section")
     try:
-        update_user_exam_access(db, user_id, exam_ids)
+        user = update_user_exam_access(db, user_id, exam_ids, full_access=full_access)
     except ValueError as exc:
+        if section:
+            return _admin_redirect(error=str(exc), section=section)
         return RedirectResponse(url=f"/admin/users/{user_id}?error={quote(str(exc))}", status_code=303)
-    return RedirectResponse(url=f"/admin/users/{user_id}?ok=Simulateurs+mis+a+jour", status_code=303)
+    ok = "Acces complet accorde a tous les simulateurs" if full_access else "Simulateurs mis a jour"
+    if section:
+        return _admin_redirect(ok=f"{ok} pour {user.first_name} {user.last_name}", section=section)
+    return RedirectResponse(url=f"/admin/users/{user_id}?ok={quote(ok)}", status_code=303)

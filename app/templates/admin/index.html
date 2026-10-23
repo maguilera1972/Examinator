@@ -92,7 +92,7 @@
       <section class="info-panel admin-pending-panel" style="margin-bottom:1.5rem;">
         <h2>Demandes d’accès en attente ({{ pending_users|length }})</h2>
         <p style="color:var(--muted);font-size:0.9rem;margin-bottom:1rem;">
-          Validez les nouveaux comptes et sélectionnez les simulateurs autorisés pour chaque utilisateur.
+          Validez les nouveaux comptes : choisissez les simulateurs examen par examen, ou accordez l’accès complet à tous les simulateurs en un clic.
         </p>
         {% if pending_users %}
         <div class="admin-users-list">
@@ -104,7 +104,13 @@
                 <p class="admin-user-email">{{ u.email }}</p>
                 <p style="color:var(--muted);font-size:0.85rem;">Inscrit le {{ u.created_at.strftime('%d %b %Y, %H:%M') }} UTC</p>
               </div>
-              <a href="/admin/users/{{ u.id }}" class="btn btn-primary btn-sm">Valider l’accès</a>
+              <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;">
+                <a href="/admin/users/{{ u.id }}" class="btn btn-secondary btn-sm">Choisir les examens</a>
+                <form method="post" action="/admin/users/{{ u.id }}/approve" onsubmit="return confirm('Approuver ce compte avec accès complet à tous les simulateurs ?');">
+                  <input type="hidden" name="full_access" value="1">
+                  <button type="submit" class="btn btn-primary btn-sm">Accès complet</button>
+                </form>
+              </div>
             </div>
           </article>
           {% endfor %}
@@ -149,6 +155,13 @@
               <a href="/admin/users/{{ u.id }}/results" class="btn btn-secondary btn-sm">Voir les résultats</a>
               {% if u.email != user.email %}
               <a href="/admin/users/{{ u.id }}" class="btn btn-secondary btn-sm">Gérer l’accès</a>
+              {% if entry.status == 'approved' and not u.full_access %}
+              <form method="post" action="/admin/users/{{ u.id }}/access" onsubmit="return confirm('Accorder l’accès complet à tous les simulateurs à ce compte ?');">
+                <input type="hidden" name="full_access" value="1">
+                <input type="hidden" name="admin_section" value="users">
+                <button type="submit" class="btn btn-secondary btn-sm">Accès complet</button>
+              </form>
+              {% endif %}
               <form method="post" action="/admin/users/{{ u.id }}/delete" onsubmit="return confirm('Delete {{ u.first_name }} {{ u.last_name }} and all their simulation history?');">
                 <input type="hidden" name="admin_section" value="users">
                 <button type="submit" class="btn btn-ghost btn-sm" style="color:var(--danger);">Delete user</button>

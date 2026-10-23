@@ -78,6 +78,37 @@ def test_admin_has_all_exam_access():
     finally:
         db.close()
 
+def test_approve_user_with_full_access_includes_future_exams():
+    from app.services.user_access_service import update_user_exam_access, user_has_full_access
+    db = SessionLocal()
+    try:
+        _ensure_exam(db, "TST-FA1")
+        user = User(first_name="Full", last_name="Flag", email="full-flag-test@example.com", status=UserStatus.PENDING)
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+        approve_user(db, user.id, [], full_access=True)
+        db.refresh(user)
+        assert user.status == UserStatus.APPROVED
+        assert user.full_access
+        assert user_has_full_access(db, user)
+        later = _ensure_exam(db, "TST-FA2")
+        assert user_can_access_exam(db, user, later.id)
+
+        update_user_exam_access(db, user.id, [later.id])
+        db.refresh(user)
+        assert not user.full_access
+        assert get_allowed_exam_ids(db, user) == {later.id}
+    finally:
+        u = db.query(User).filter(User.email == "full-flag-test@example.com").first()
+        if u:
+            db.query(UserExamAccess).filter(UserExamAccess.user_id == u.id).delete()
+            db.delete(u)
+        db.query(Exam).filter(Exam.code == "TST-FA2").delete()
+        db.commit()
+        db.close()
+
+
 def test_user_has_full_access_when_all_exams_granted():
     from app.services.user_access_service import grant_exam_access, user_has_full_access
     db = SessionLocal()

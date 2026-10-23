@@ -17,26 +17,49 @@
   {% if target_user.status.value == 'pending' %}
   <form method="post" action="/admin/users/{{ target_user.id }}/approve" class="info-panel">
     <h2>Approuver et attribuer des simulateurs</h2>
-    <p style="color:var(--muted);font-size:0.9rem;margin-bottom:1rem;">Cochez les examens autorises pour cet utilisateur.</p>
+    <div class="admin-full-access-box">
+      <div>
+        <strong>Accès complet</strong>
+        <p>Autorise tous les simulateurs, y compris ceux ajoutés plus tard.</p>
+      </div>
+      <button type="submit" name="full_access" value="1" class="btn btn-primary" formnovalidate onclick="return confirm('Approuver avec accès complet à tous les simulateurs ?');">Approuver avec accès complet</button>
+    </div>
+    <p style="color:var(--muted);font-size:0.9rem;margin:1rem 0;">Ou cochez uniquement les examens autorisés pour cet utilisateur.</p>
     <div class="admin-exam-checkboxes">
       {% for exam in exams %}
       <label class="admin-exam-check"><input type="checkbox" name="exam_ids" value="{{ exam.id }}"> <strong>{{ exam.code }}</strong> — {{ exam.name }}</label>
       {% endfor %}
     </div>
     <div style="margin-top:1rem;display:flex;gap:0.5rem;flex-wrap:wrap;">
-      <button type="submit" class="btn btn-primary">Approuver l acces</button>
+      <button type="submit" class="btn btn-secondary">Approuver la sélection</button>
       <button type="submit" formaction="/admin/users/{{ target_user.id }}/reject" class="btn btn-ghost" style="color:var(--danger);" onclick="return confirm('Refuser cette demande ?');">Refuser</button>
     </div>
   </form>
   {% elif target_user.status.value == 'approved' %}
   <form method="post" action="/admin/users/{{ target_user.id }}/access" class="info-panel">
     <h2>Simulateurs autorises</h2>
+    <div class="admin-full-access-box">
+      <div>
+        <strong>Accès complet</strong>
+        {% if full_access_flag %}
+        <p><span class="full-access-badge">Full Access</span> Actif — inclut automatiquement les nouveaux simulateurs.</p>
+        {% else %}
+        <p>Autorise tous les simulateurs, y compris ceux ajoutés plus tard.</p>
+        {% endif %}
+      </div>
+      {% if not full_access_flag %}
+      <button type="submit" name="full_access" value="1" class="btn btn-primary" onclick="return confirm('Accorder l’accès complet à tous les simulateurs ?');">Accorder l’accès complet</button>
+      {% endif %}
+    </div>
+    <p style="color:var(--muted);font-size:0.9rem;margin:1rem 0;">
+      {% if full_access_flag %}Pour revenir à un accès par examen, ajustez les cases puis enregistrez la sélection.{% else %}Ou choisissez les examens autorisés :{% endif %}
+    </p>
     <div class="admin-exam-checkboxes">
       {% for exam in exams %}
       <label class="admin-exam-check"><input type="checkbox" name="exam_ids" value="{{ exam.id }}"{% if exam.id in allowed_exam_ids %} checked{% endif %}> <strong>{{ exam.code }}</strong> — {{ exam.name }}</label>
       {% endfor %}
     </div>
-    <button type="submit" class="btn btn-primary" style="margin-top:1rem;">Enregistrer</button>
+    <button type="submit" class="btn btn-secondary" style="margin-top:1rem;">Enregistrer la sélection</button>
   </form>
   {% else %}
   <div class="info-panel"><p style="color:var(--muted);">Compte refuse. Aucun simulateur n est accessible.</p></div>

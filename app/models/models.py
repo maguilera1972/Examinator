@@ -61,6 +61,7 @@ class User(Base):
     email = Column(String(255), unique=True, nullable=False, index=True)
     status = Column(Enum(UserStatus, values_callable=lambda x: [e.value for e in x], native_enum=False), default=UserStatus.PENDING, nullable=False, index=True)
     approved_at = Column(DateTime, nullable=True)
+    full_access = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     sessions = relationship("ExamSession", back_populates="user", cascade="all, delete-orphan")

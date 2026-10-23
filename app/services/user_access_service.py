@@ -24,12 +24,15 @@ def is_user_rejected(user: User | None) -> bool:
     return bool(user and not is_admin(user) and user.status == UserStatus.REJECTED)
 
 
+def _active_exam_ids(db: Session) -> set[int]:
+    return {row[0] for row in db.query(Exam.id).filter(Exam.is_active.is_(True)).all()}
+
+
 def get_allowed_exam_ids(db: Session, user: User | None) -> set[int]:
     if not user or not is_user_approved(user):
         return set()
-    if is_admin(user):
-        rows = db.query(Exam.id).filter(Exam.is_active.is_(True)).all()
-        return {row[0] for row in rows}
+    if is_admin(user) or user.full_access:
+        return _active_exam_ids(db)
     rows = (
         db.query(UserExamAccess.exam_id)
         .join(Exam, Exam.id == UserExamAccess.exam_id)
@@ -64,16 +67,19 @@ def grant_exam_access(db: Session, user_id: int, exam_ids: list[int]) -> None:
     db.commit()
 
 
-def approve_user(db: Session, user_id: int, exam_ids: list[int]) -> User:
+def approve_user(db: Session, user_id: int, exam_ids: list[int], full_access: bool = False) -> User:
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise ValueError("Utilisateur introuvable")
     if is_admin(user):
         raise ValueError("Le compte administrateur ne necessite pas d approbation")
-    if not exam_ids:
+    if full_access:
+        exam_ids = list(_active_exam_ids(db))
+    elif not exam_ids:
         raise ValueError("Selectionnez au moins un simulateur")
     user.status = UserStatus.APPROVED
     user.approved_at = datetime.utcnow()
+    user.full_access = full_access
     db.commit()
     grant_exam_access(db, user_id, exam_ids)
     db.refresh(user)
@@ -88,20 +94,27 @@ def reject_user(db: Session, user_id: int) -> User:
         raise ValueError("Le compte administrateur ne peut pas etre refuse")
     user.status = UserStatus.REJECTED
     user.approved_at = None
+    user.full_access = False
     db.query(UserExamAccess).filter(UserExamAccess.user_id == user_id).delete(synchronize_session=False)
     db.commit()
     db.refresh(user)
     return user
 
 
-def update_user_exam_access(db: Session, user_id: int, exam_ids: list[int]) -> User:
+def update_user_exam_access(
+    db: Session, user_id: int, exam_ids: list[int], full_access: bool = False
+) -> User:
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise ValueError("Utilisateur introuvable")
     if not is_user_approved(user):
         raise ValueError("L utilisateur doit etre approuve avant d attribuer des simulateurs")
-    if not is_admin(user) and not exam_ids:
+    if full_access:
+        exam_ids = list(_active_exam_ids(db))
+    elif not is_admin(user) and not exam_ids:
         raise ValueError("Selectionnez au moins un simulateur")
+    user.full_access = full_access
+    db.commit()
     grant_exam_access(db, user_id, exam_ids)
     db.refresh(user)
     return user
@@ -147,7 +160,9 @@ def get_pending_users(db: Session) -> list[User]:
 def user_has_full_access(db: Session, user: User | None) -> bool:
     if not user or not is_user_approved(user):
         return False
-    active_ids = {row[0] for row in db.query(Exam.id).filter(Exam.is_active.is_(True)).all()}
+    if user.full_access:
+        return True
+    active_ids = _active_exam_ids(db)
     if not active_ids:
         return False
     return get_allowed_exam_ids(db, user) == active_ids
@@ -160,4 +175,5 @@ def get_user_access_report(db: Session, user: User) -> dict:
         "allowed_exam_ids": allowed,
         "allowed_exams": exams,
         "has_full_access": user_has_full_access(db, user),
+        "full_access_flag": bool(user.full_access),
     }

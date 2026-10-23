@@ -1912,6 +1912,19 @@ body.no-sidebar .main-content { max-width: none; padding: 1rem; }
   border: 1px solid rgba(74, 222, 128, 0.35);
 }
 
+.admin-full-access-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 0.9rem 1rem;
+  border: 1px solid rgba(74, 222, 128, 0.35);
+  border-radius: 10px;
+  background: rgba(74, 222, 128, 0.06);
+}
+.admin-full-access-box p { color: var(--muted); font-size: 0.88rem; margin: 0.25rem 0 0; }
+
 .help-ui-note {
   border-left: 3px solid var(--accent, #2b6cb0);
   margin-bottom: 1.25rem;
