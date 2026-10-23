@@ -121,7 +121,10 @@
       </section>
 
       <section class="info-panel">
-        <h2>Utilisateurs enregistrés ({{ users_report|length }})</h2>
+        <div class="admin-users-head">
+          <h2>Utilisateurs enregistrés ({{ users_report|length }})</h2>
+          <button type="button" class="btn btn-primary btn-sm" data-mail-open>✉ Envoyer un message aux utilisateurs</button>
+        </div>
         <p style="color:var(--muted);font-size:0.9rem;margin-bottom:1rem;">
           Comptes du portail et activité de simulation. Seuls les administrateurs peuvent supprimer un compte.
         </p>
@@ -500,5 +503,56 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="/static/js/admin.js?v=1"></script>
+<dialog class="mail-dialog" id="mailDialog" aria-labelledby="mailDialogTitle">
+  <form method="post" action="/admin/email/send" id="mailForm">
+    <div class="mail-dialog-head">
+      <h2 id="mailDialogTitle">Message aux utilisateurs</h2>
+      <button type="button" class="mail-dialog-close" data-mail-close aria-label="Fermer">×</button>
+    </div>
+    <p class="mail-dialog-sub">Expéditeur : <strong>{{ mail_sender }}</strong>{% if not mail_configured %} — <span style="color:var(--danger);">envoi non configuré (.env)</span>{% endif %}</p>
+
+    <div class="mail-step" data-mail-step="edit">
+      <div class="form-group">
+        <label for="mailAudience">Destinataires</label>
+        <select id="mailAudience" name="audience">
+          {% for key, label in mail_audiences.items() %}<option value="{{ key }}">{{ label }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="mailSubject">Objet</label>
+        <input id="mailSubject" name="subject" required maxlength="200" placeholder="Nouveaux simulateurs disponibles">
+      </div>
+      <div class="form-group">
+        <label for="mailBody">Message</label>
+        <textarea id="mailBody" name="body" rows="9" required placeholder="Bonjour {prénom},&#10;&#10;Votre message…"></textarea>
+        <small class="mail-hint">Ligne vide = nouveau paragraphe · <code>**gras**</code> · les liens https://… sont cliquables · <code>{prénom}</code> et <code>{nom}</code> sont remplacés pour chaque destinataire.</small>
+      </div>
+      <div class="mail-button-fields">
+        <div class="form-group">
+          <label for="mailButtonLabel">Texte du bouton (optionnel)</label>
+          <input id="mailButtonLabel" name="button_label" placeholder="Ouvrir Examinator">
+        </div>
+        <div class="form-group">
+          <label for="mailButtonUrl">Lien du bouton</label>
+          <input id="mailButtonUrl" name="button_url" type="url" value="{{ public_url }}" placeholder="https://…">
+        </div>
+      </div>
+      <div class="mail-actions">
+        <button type="button" class="btn btn-secondary" data-mail-close>Annuler</button>
+        <button type="button" class="btn btn-primary" data-mail-preview>Prévisualiser →</button>
+      </div>
+    </div>
+
+    <div class="mail-step" data-mail-step="preview" hidden>
+      <p class="mail-preview-info" data-mail-info></p>
+      <iframe class="mail-preview-frame" title="Aperçu de l’e-mail" sandbox="" data-mail-frame></iframe>
+      <div class="mail-actions">
+        <button type="button" class="btn btn-secondary" data-mail-back>← Modifier</button>
+        <button type="submit" name="mode" value="test" class="btn btn-secondary" formnovalidate>Envoyer un test à moi</button>
+        <button type="submit" name="mode" value="all" class="btn btn-primary" data-mail-send>Envoyer</button>
+      </div>
+    </div>
+  </form>
+</dialog>
+<script src="/static/js/admin.js?v=2"></script>
 {% endblock %}

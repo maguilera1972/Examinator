@@ -72,3 +72,56 @@
     });
   });
 })();
+
+(function () {
+  const dialog = document.getElementById("mailDialog");
+  if (!dialog) return;
+  const form = document.getElementById("mailForm");
+  const steps = dialog.querySelectorAll("[data-mail-step]");
+  const frame = dialog.querySelector("[data-mail-frame]");
+  const info = dialog.querySelector("[data-mail-info]");
+  const sendBtn = dialog.querySelector("[data-mail-send]");
+  let recipientCount = 0;
+
+  function showStep(name) {
+    steps.forEach((s) => { s.hidden = s.getAttribute("data-mail-step") !== name; });
+  }
+
+  document.querySelectorAll("[data-mail-open]").forEach((btn) =>
+    btn.addEventListener("click", () => { showStep("edit"); dialog.showModal(); })
+  );
+  dialog.querySelectorAll("[data-mail-close]").forEach((btn) =>
+    btn.addEventListener("click", () => dialog.close())
+  );
+  dialog.querySelector("[data-mail-back]").addEventListener("click", () => showStep("edit"));
+
+  dialog.querySelector("[data-mail-preview]").addEventListener("click", async () => {
+    if (!form.reportValidity()) return;
+    const resp = await fetch("/admin/email/preview", { method: "POST", body: new FormData(form) });
+    if (!resp.ok) { alert("Aperçu impossible (session expirée ?)"); return; }
+    const data = await resp.json();
+    recipientCount = data.count;
+    frame.srcdoc = data.html;
+    info.textContent = `${data.audience} : ${data.count} destinataire(s), depuis ${data.sender}. ` +
+      "Aperçu personnalisé avec votre nom ; chaque destinataire reçoit un e-mail individuel." +
+      (data.configured ? "" : " ⚠ Envoi non configuré.");
+    sendBtn.textContent = `Envoyer à ${data.count} utilisateur(s)`;
+    sendBtn.disabled = !data.configured || !data.count;
+    showStep("preview");
+  });
+
+  form.addEventListener("submit", (event) => {
+    const mode = event.submitter && event.submitter.value;
+    if (mode === "all" && !confirm(`Envoyer ce message à ${recipientCount} utilisateur(s) ?`)) {
+      event.preventDefault();
+      return;
+    }
+    if (event.submitter) {
+      event.submitter.disabled = true;
+      event.submitter.textContent = "Envoi en cours…";
+      const hidden = document.createElement("input");
+      hidden.type = "hidden"; hidden.name = "mode"; hidden.value = mode;
+      form.appendChild(hidden);
+    }
+  });
+})();

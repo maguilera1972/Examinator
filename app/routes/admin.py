@@ -2,9 +2,10 @@ from urllib.parse import quote
 import json
 
 from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
-from fastapi.responses import HTMLResponse, RedirectResponse, Response
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from sqlalchemy.orm import Session
 
+from app.config import settings
 from app.database import get_db
 from app.models.models import Exam, ExamSource, ImportLog, Question, User
 from app.services.auth import is_admin, require_admin
@@ -28,6 +29,14 @@ from app.services.learn_retirement_service import (
     unignore_code,
 )
 from app.services.learn_skills_service import apply_official_sections
+from app.services.mail_service import (
+    AUDIENCES,
+    MailConfigError,
+    get_recipients,
+    mail_configured,
+    render_email_html,
+    send_broadcast,
+)
 from app.services.excel_import_service import (
     build_question_bank_workbook,
     clear_all_question_pools,
@@ -123,7 +132,69 @@ def admin_dashboard(request: Request, db: Session = Depends(get_db)):
         "sync_summary": get_last_sync_summary(db),
         "inactive_exams": list_inactive_exams(db),
         "ignored_codes": list_ignored_codes(db),
+        "mail_audiences": AUDIENCES,
+        "mail_sender": settings.mail_sender,
+        "mail_configured": mail_configured(),
+        "public_url": settings.public_url,
+        "recipient_count": len(get_recipients(db, "all")),
     }, user=admin)
+
+
+@router.post("/email/preview")
+async def admin_email_preview(request: Request, db: Session = Depends(get_db)):
+    admin, redirect = _admin_or_redirect(request, db)
+    if redirect:
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+    form = await request.form()
+    audience = form.get("audience", "all")
+    recipients = get_recipients(db, audience)
+    html_body = render_email_html(
+        form.get("subject", ""),
+        form.get("body", ""),
+        admin,
+        button_label=form.get("button_label", ""),
+        button_url=form.get("button_url", ""),
+        logo_src="/static/img/logo.png",
+    )
+    return JSONResponse({
+        "html": html_body,
+        "count": len(recipients),
+        "audience": AUDIENCES.get(audience, audience),
+        "sender": settings.mail_sender,
+        "configured": mail_configured(),
+    })
+
+
+@router.post("/email/send")
+async def admin_email_send(request: Request, db: Session = Depends(get_db)):
+    admin, redirect = _admin_or_redirect(request, db)
+    if redirect:
+        return redirect
+    form = await request.form()
+    test_only = form.get("mode") == "test"
+    recipients = [admin] if test_only else get_recipients(db, form.get("audience", "all"))
+    subject = form.get("subject", "")
+    try:
+        result = send_broadcast(
+            db,
+            recipients,
+            f"[TEST] {subject}" if test_only else subject,
+            form.get("body", ""),
+            button_label=form.get("button_label", ""),
+            button_url=form.get("button_url", ""),
+            log_label="email_test" if test_only else "email_broadcast",
+        )
+    except (ValueError, MailConfigError) as exc:
+        return _admin_redirect(error=str(exc), section="users")
+    if test_only:
+        if result.failed:
+            return _admin_redirect(error=f"Échec de l’envoi test : {result.failed[0][1]}", section="users")
+        return _admin_redirect(ok=f"E-mail de test envoyé à {admin.email}", section="users")
+    ok = f"Message envoyé à {len(result.sent)}/{len(recipients)} utilisateur(s) depuis {settings.mail_sender}"
+    if result.failed:
+        failed = ", ".join(email for email, _ in result.failed[:10])
+        return _admin_redirect(error=f"{ok}. Échecs ({len(result.failed)}) : {failed} — détails dans le Journal", section="users")
+    return _admin_redirect(ok=ok, section="users")
 
 
 @router.post("/exams/{exam_id}/reactivate")
