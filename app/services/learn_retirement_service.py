@@ -37,7 +37,11 @@ STATUS_LABELS = {
 
 _META_RETIREMENT_RE = re.compile(r'<meta\s+name="retirementDate"\s+content="(\d{4}-\d{2}-\d{2})', re.I)
 _TEXT_RETIREMENT_RE = re.compile(r"Retirement date\s*:?\s*(\d{2}/\d{2}/\d{4})", re.I)
-_RETIRED_TEXT_RE = re.compile(r"\bThis (?:exam|certification)\b[^.?]{0,60}\b(?:is|are) retired\b|\bThis exam retired on\b")
+_RETIRED_TEXT_RE = re.compile(
+    r"\bThis (?:exam|certification)\b[^.?]{0,60}\b(?:is|are|was|were|has been|have been) retired\b"
+    r"|\bThis exam (?:was )?retired on\b"
+)
+_RETIRED_ON_RE = re.compile(r"\bThis (?:exam|certification)\b[^.?]{0,60}\bretired on ([A-Z][a-z]+ \d{1,2}, \d{4})")
 _REPLACEMENT_RE = re.compile(
     r"(?i:replacement exam|replaced by|new exam)[^.]{0,40}?Exam\s+([A-Z]{2,3}-\d{3}[A-Z]?)"
 )
@@ -49,6 +53,7 @@ class LearnExamStatus:
     status: str
     retirement_date: date | None = None
     replacement_code: str = ""
+    replacement_inferred: bool = False
     url: str = ""
     note: str = ""
 
@@ -73,6 +78,15 @@ def parse_learn_exam_page(code: str, html: str, final_url: str = "", today: date
         found = _TEXT_RETIREMENT_RE.search(text)
         if found:
             retirement = datetime.strptime(found.group(1), "%m/%d/%Y").date()
+    if not retirement:
+        found = _RETIRED_ON_RE.search(text)
+        if found:
+            for fmt in ("%B %d, %Y", "%b %d, %Y"):
+                try:
+                    retirement = datetime.strptime(found.group(1), fmt).date()
+                    break
+                except ValueError:
+                    continue
 
     replacement = ""
     rep = _REPLACEMENT_RE.search(text)
@@ -138,6 +152,55 @@ def _exam_keys(exams: list[Exam]) -> list[tuple[str, str]]:
     return [(e.code, e.learn_slug or LEARN_SLUGS.get(e.code, "")) for e in exams]
 
 
+_EXAM_CODE_RE = re.compile(r"\b[A-Z]{2,3}-\d{3}[A-Z]?\b")
+
+
+def _infer_replacements(
+    exam_slugs: list[tuple[str, str]],
+    statuses: dict[str, LearnExamStatus],
+    cert_page_codes: dict[str, set[str]],
+) -> None:
+    """A retired exam's successor is a valid exam now required by its certification page,
+    provided that page no longer mentions the retired exam (e.g. AZ-800/AZ-801 → AZ-802)."""
+    valid = {c for c, s in statuses.items() if s.status in (STATUS_ACTIVE, STATUS_RETIRING)}
+    for code, slug in exam_slugs:
+        st = statuses.get(code)
+        if not st or st.status != STATUS_RETIRED or st.replacement_code or not slug:
+            continue
+        listed = cert_page_codes.get(slug)
+        if not listed or code in listed:
+            continue
+        successors = sorted(c for c in listed if c in valid)
+        if successors:
+            st.replacement_code = ", ".join(successors)
+            st.replacement_inferred = True
+
+
+def _fetch_cert_page_codes(slugs: set[str]) -> dict[str, set[str]]:
+    result: dict[str, set[str]] = {}
+    with httpx.Client(timeout=25, follow_redirects=True, headers={"User-Agent": USER_AGENT}) as client:
+        for slug in sorted(slugs):
+            try:
+                resp = client.get(learn_url_for_slug(slug))
+            except Exception:
+                continue
+            if resp.status_code == 200:
+                text = BeautifulSoup(resp.text, "lxml").get_text(" ", strip=True)
+                result[slug] = set(_EXAM_CODE_RE.findall(text))
+    return result
+
+
+def _fetch_with_replacements(exams: list[Exam]) -> dict[str, LearnExamStatus]:
+    keys = _exam_keys(exams)
+    statuses = fetch_learn_statuses(keys)
+    slugs = {
+        slug for code, slug in keys
+        if slug and statuses.get(code) and statuses[code].status == STATUS_RETIRED and not statuses[code].replacement_code
+    }
+    _infer_replacements(keys, statuses, _fetch_cert_page_codes(slugs))
+    return statuses
+
+
 def retirement_candidates(db: Session) -> list[Exam]:
     return (
         db.query(Exam)
@@ -154,7 +217,7 @@ def retirement_candidates(db: Session) -> list[Exam]:
 def analyze_microsoft_retirements(db: Session, statuses: dict[str, LearnExamStatus] | None = None) -> list[dict]:
     exams = retirement_candidates(db)
     if statuses is None:
-        statuses = fetch_learn_statuses(_exam_keys(exams))
+        statuses = _fetch_with_replacements(exams)
     known_codes = {
         row[0] for row in db.query(Exam.code).filter(Exam.is_active.is_(True)).all()
     }
@@ -166,7 +229,9 @@ def analyze_microsoft_retirements(db: Session, statuses: dict[str, LearnExamStat
             "status": st,
             "question_count": db.query(Question).filter(Question.exam_id == exam.id).count(),
             "session_count": db.query(ExamSession).filter(ExamSession.exam_id == exam.id).count(),
-            "replacement_in_catalog": bool(st.replacement_code and st.replacement_code in known_codes),
+            "replacement_in_catalog": bool(st.replacement_code) and all(
+                c.strip() in known_codes for c in st.replacement_code.split(",")
+            ),
         })
     return rows
 
@@ -206,7 +271,7 @@ def retire_exams(db: Session, exam_ids: list[int], statuses: dict[str, LearnExam
 
 def prune_retired_microsoft_exams(db: Session) -> dict:
     exams = retirement_candidates(db)
-    statuses = fetch_learn_statuses(_exam_keys(exams))
+    statuses = _fetch_with_replacements(exams)
     to_retire = [e.id for e in exams if statuses.get(e.code) and statuses[e.code].status == STATUS_RETIRED]
     retired = retire_exams(db, to_retire, statuses)
     return {

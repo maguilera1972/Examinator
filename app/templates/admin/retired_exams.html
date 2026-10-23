@@ -34,7 +34,7 @@
           <td>{{ st.retirement_date.strftime('%d.%m.%Y') if st.retirement_date else '—' }}</td>
           <td>
             {% if st.replacement_code %}
-            <strong>{{ st.replacement_code }}</strong>{% if not r.replacement_in_catalog %} <small style="color:var(--muted);">(absent du catalogue)</small>{% endif %}
+            <strong>{{ st.replacement_code }}</strong>{% if st.replacement_inferred %} <small style="color:var(--muted);">(même certification)</small>{% endif %}{% if not r.replacement_in_catalog %} <small style="color:var(--muted);">(absent du catalogue)</small>{% endif %}
             {% else %}—{% endif %}
           </td>
           <td>{{ r.question_count }}</td>

@@ -49,6 +49,38 @@ def test_parse_retired_exam_with_replacement():
     assert st.replacement_code == "MS-102"
 
 
+def test_parse_was_retired_wording_with_date_from_text():
+    page = (
+        "<html><body><h1>Exam AZ-800: Administering Windows Server Hybrid Core Infrastructure</h1>"
+        "<p>Warning This exam was retired on September 30, 2026. You will no longer be able to earn "
+        "or renew this certification after this date.</p><p>Retirement date: none</p></body></html>"
+    )
+    st = parse_learn_exam_page("AZ-800", page, today=TODAY)
+    assert st.status == STATUS_RETIRED
+    assert st.retirement_date == date(2026, 9, 30)
+
+
+def test_replacement_inferred_from_same_certification():
+    from app.services.learn_retirement_service import _infer_replacements
+
+    slug = "windows-server-hybrid-administrator"
+    keys = [("AZ-800", slug), ("AZ-801", slug), ("AZ-802", slug), ("MB-700", "fo-architect")]
+    statuses = {
+        "AZ-800": LearnExamStatus(code="AZ-800", status=STATUS_RETIRED),
+        "AZ-801": LearnExamStatus(code="AZ-801", status=STATUS_RETIRED),
+        "AZ-802": LearnExamStatus(code="AZ-802", status=STATUS_ACTIVE),
+        "MB-700": LearnExamStatus(code="MB-700", status=STATUS_RETIRED),
+        "MB-310": LearnExamStatus(code="MB-310", status=STATUS_ACTIVE),
+    }
+    cert_pages = {slug: {"AZ-802"}, "fo-architect": {"MB-700", "MB-310"}}
+    _infer_replacements(keys, statuses, cert_pages)
+    assert statuses["AZ-800"].replacement_code == "AZ-802"
+    assert statuses["AZ-801"].replacement_code == "AZ-802"
+    assert statuses["AZ-800"].replacement_inferred
+    assert statuses["AZ-802"].replacement_code == ""
+    assert statuses["MB-700"].replacement_code == ""
+
+
 def test_parse_retired_certification_page_without_date():
     st = parse_learn_exam_page("PL-500", RETIRED_CERT_PAGE, today=TODAY)
     assert st.status == STATUS_RETIRED
