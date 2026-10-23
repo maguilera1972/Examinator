@@ -280,19 +280,32 @@
       <h2>Qualité des pools</h2>
       <p style="color:var(--muted);font-size:0.9rem;margin-bottom:1rem;">
         Status : {% if quality.ok %}<span style="color:var(--success)">OK</span>{% else %}<span style="color:var(--danger)">Issues detected</span>{% endif %}
+        · {{ quality.exams|length }} examen(s) actif(s)
       </p>
+      {% if sync_summary %}
+      <div class="admin-sync-summary">
+        <strong>Dernière synchronisation :</strong> {{ sync_summary.date.strftime('%d.%m.%Y %H:%M') }} UTC
+        <ul>
+          <li>Ajoutés ({{ sync_summary.added|length }}) : {% if sync_summary.added %}{% for c in sync_summary.added %}<span class="sync-chip sync-chip-added">{{ c }}</span>{% endfor %}{% else %}—{% endif %}</li>
+          <li>Retirés du catalogue ({{ sync_summary.retired|length }}) : {% if sync_summary.retired %}{% for c in sync_summary.retired %}<span class="sync-chip sync-chip-retired">{{ c }}</span>{% endfor %}{% else %}—{% endif %}</li>
+          {% if sync_summary.deleted %}<li>Supprimés définitivement ({{ sync_summary.deleted|length }}) : {% for c in sync_summary.deleted %}<span class="sync-chip">{{ c }}</span>{% endfor %}</li>{% endif %}
+        </ul>
+      </div>
+      {% endif %}
       <div class="admin-filter-bar">
         <label class="sr-only" for="adminPoolFilter">Filtrer les pools</label>
         <input type="search" id="adminPoolFilter" class="admin-filter-input" placeholder="Filtrer par code examen…" data-admin-filter="pools">
       </div>
       <table class="breakdown-table">
         <thead>
-          <tr><th>Exam</th><th>Active</th><th>Unique</th><th>Duplicates</th><th>Session ready</th><th></th></tr>
+          <tr><th>Exam</th><th>Vendor</th><th>Active</th><th>Unique</th><th>Duplicates</th><th>Session ready</th><th></th></tr>
         </thead>
         <tbody data-admin-filter-list="pools">
+          {% set added_codes = sync_summary.added if sync_summary else [] %}
           {% for e in quality.exams %}
-          <tr data-filter-text="{{ e.exam_code }}">
-            <td>{{ e.exam_code }}</td>
+          <tr data-filter-text="{{ e.exam_code }} {{ e.vendor }}">
+            <td>{{ e.exam_code }}{% if e.exam_code in added_codes %} <span class="sync-chip sync-chip-added">Nouveau</span>{% endif %}</td>
+            <td>{{ e.vendor }}</td>
             <td>{{ e.active_count }}</td>
             <td>{{ e.unique_count }}</td>
             <td>{% if e.duplicate_groups %}<span style="color:var(--danger)">{{ e.duplicate_groups }}</span>{% else %}0{% endif %}</td>
@@ -315,6 +328,78 @@
         <input type="hidden" name="admin_section" value="pools">
         <button type="submit" class="btn btn-ghost btn-sm" style="color:var(--danger);">Désactiver tous les pools</button>
       </form>
+
+      <h3 style="font-size:1.05rem;margin:2rem 0 0.5rem;">Examens retirés ou inactifs ({{ inactive_exams|length }})</h3>
+      <p style="color:var(--muted);font-size:0.9rem;margin-bottom:1rem;">
+        Ces examens ne sont plus visibles dans le catalogue. La suppression définitive efface l’examen, son pool et l’historique de ses sessions ;
+        son code est alors ignoré par les synchronisations suivantes.
+      </p>
+      {% if inactive_exams %}
+      {% set bulk = inactive_exams|selectattr('bulk_deletable')|list %}
+      {% set bulk_sessions = bulk|sum(attribute='session_count') %}
+      <table class="breakdown-table">
+        <thead>
+          <tr><th>Exam</th><th>Vendor</th><th>Statut</th><th>Questions</th><th>Sessions</th><th></th></tr>
+        </thead>
+        <tbody>
+          {% for r in inactive_exams %}
+          <tr>
+            <td><strong>{{ r.exam.code }}</strong> — {{ r.exam.name }}</td>
+            <td>{{ r.exam.vendor }}</td>
+            <td>{{ r.reason }}</td>
+            <td>{{ r.question_count }}</td>
+            <td>{{ r.session_count }}</td>
+            <td>
+              <div class="admin-row-actions">
+                <form method="post" action="/admin/exams/{{ r.exam.id }}/reactivate">
+                  <button type="submit" class="btn btn-secondary btn-sm">Réactiver</button>
+                </form>
+                <form method="post" action="/admin/exams/{{ r.exam.id }}/clear-pool" onsubmit="return confirm('Vider définitivement le pool de {{ r.exam.code }} ?');">
+                  <input type="hidden" name="admin_section" value="pools">
+                  <button type="submit" class="btn btn-ghost btn-sm"{% if r.question_count == 0 %} disabled title="Pool déjà vide"{% endif %}>Vider le pool</button>
+                </form>
+                <form method="post" action="/admin/exams/{{ r.exam.id }}/delete-retired" onsubmit="return confirm('Supprimer définitivement {{ r.exam.code }} ({{ r.question_count }} question(s), {{ r.session_count }} session(s)) ?');">
+                  <button type="submit" class="btn btn-ghost btn-sm" style="color:var(--danger);">Supprimer</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% if bulk %}
+      <form method="post" action="/admin/maintenance/delete-retired" style="margin-top:1rem;" onsubmit="return confirm('Supprimer définitivement {{ bulk|length }} examen(s) retiré(s) ?\n\n• {{ bulk_sessions }} session(s) d’historique seront effacées\n• Leurs codes seront ignorés par les prochaines synchronisations');">
+        <button type="submit" class="btn btn-primary" style="background:var(--danger);border-color:var(--danger);">Supprimer définitivement tous les examens retirés ({{ bulk|length }})</button>
+        {% if bulk|length < inactive_exams|length %}<small style="color:var(--muted);margin-left:0.5rem;">Les examens custom inactifs ne sont pas inclus.</small>{% endif %}
+      </form>
+      {% endif %}
+      {% else %}
+      <p style="color:var(--muted);">Aucun examen retiré ou inactif.</p>
+      {% endif %}
+
+      {% if ignored_codes %}
+      <details style="margin-top:1.5rem;">
+        <summary style="cursor:pointer;">Codes ignorés par la synchronisation ({{ ignored_codes|length }})</summary>
+        <table class="breakdown-table" style="margin-top:0.75rem;">
+          <thead><tr><th>Code</th><th>Vendor</th><th>Nom</th><th>Supprimé le</th><th></th></tr></thead>
+          <tbody>
+            {% for ig in ignored_codes %}
+            <tr>
+              <td><strong>{{ ig.code }}</strong></td>
+              <td>{{ ig.vendor }}</td>
+              <td>{{ ig.name }}</td>
+              <td>{{ ig.created_at.strftime('%d.%m.%Y') }}</td>
+              <td>
+                <form method="post" action="/admin/maintenance/ignored/{{ ig.id }}/delete">
+                  <button type="submit" class="btn btn-ghost btn-sm">Autoriser à nouveau</button>
+                </form>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </details>
+      {% endif %}
     </section>
 
     <section id="panel-import" class="admin-panel info-panel" data-admin-panel="import" role="tabpanel" hidden>

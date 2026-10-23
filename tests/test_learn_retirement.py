@@ -102,6 +102,73 @@ def test_retire_exams_hides_exam_and_can_be_reactivated():
         db.close()
 
 
+def test_sync_log_parsing_for_summary():
+    from app.services.learn_retirement_service import _codes_after_prefix
+
+    msg = "Synced 10 Microsoft families and 69 Microsoft exams; ... Added (2): AI-900, AZ-120. Poster fetch note: x"
+    assert _codes_after_prefix(msg, "Added (") == ["AI-900", "AZ-120"]
+    assert _codes_after_prefix("Synced. Added (0): -.", "Added (") == []
+    assert _codes_after_prefix("Retired from catalog (2): MS-100 → MS-102, PL-500", "Retired from catalog (") == ["MS-100 → MS-102", "PL-500"]
+
+
+def test_quality_report_is_sorted_by_vendor_then_code():
+    from app.services.question_quality import run_quality_report
+
+    db = SessionLocal()
+    try:
+        rank = {"Microsoft": 0, "CompTIA": 1, "Examinator": 2}
+        keys = [(rank.get(e["vendor"], 9), e["vendor"], e["exam_code"]) for e in run_quality_report(db)["exams"]]
+        assert keys == sorted(keys)
+    finally:
+        db.close()
+
+
+def test_delete_retired_exam_is_ignored_by_sync_until_unignored():
+    from app.models.models import IgnoredExamCode
+    from app.services.learn_retirement_service import (
+        delete_retired_exam,
+        ignored_exam_codes,
+        list_inactive_exams,
+        reactivate_exam,
+        unignore_code,
+    )
+
+    db = SessionLocal()
+    code = "ZZ-903"
+    try:
+        exam = Exam(code=code, name="Delete Test", vendor="Microsoft", duration_minutes=60)
+        db.add(exam)
+        db.commit()
+        exam_id = exam.id
+
+        try:
+            delete_retired_exam(db, exam_id)
+            assert False, "active exams must not be deletable here"
+        except ValueError:
+            pass
+
+        retire_exams(db, [exam_id])
+        assert any(r["exam"].id == exam_id and r["bulk_deletable"] for r in list_inactive_exams(db))
+        reactivate_exam(db, exam_id)
+        db.refresh(exam)
+        assert exam.is_active and exam.external_source == ""
+
+        retire_exams(db, [exam_id])
+        assert delete_retired_exam(db, exam_id) == code
+        assert db.query(Exam).filter(Exam.code == code).count() == 0
+        assert code in ignored_exam_codes(db)
+
+        ignored = db.query(IgnoredExamCode).filter(IgnoredExamCode.code == code).first()
+        unignore_code(db, ignored.id)
+        assert code not in ignored_exam_codes(db)
+    finally:
+        db.query(IgnoredExamCode).filter(IgnoredExamCode.code == code).delete()
+        db.query(ImportLog).filter(ImportLog.message.contains(code)).delete(synchronize_session=False)
+        db.query(Exam).filter(Exam.code == code).delete()
+        db.commit()
+        db.close()
+
+
 def test_retire_exams_skips_custom_exams():
     db = SessionLocal()
     code = "ZZ-CUS"

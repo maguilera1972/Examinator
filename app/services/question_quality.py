@@ -100,7 +100,9 @@ def run_quality_report(db: Session) -> dict:
     from app.models.models import Exam
 
     ensure_fingerprints(db)
+    vendor_rank = {"Microsoft": 0, "CompTIA": 1, "Examinator": 2}
     exams = db.query(Exam).filter(Exam.is_active.is_(True)).all()
+    exams.sort(key=lambda e: (vendor_rank.get(e.vendor, 9), e.vendor or "", e.code))
     report = {"exams": [], "total_duplicate_groups": 0, "ok": True}
     for exam in exams:
         active = (
@@ -118,6 +120,7 @@ def run_quality_report(db: Session) -> dict:
         entry = {
             "exam_code": exam.code,
             "exam_id": exam.id,
+            "vendor": exam.vendor or "",
             "active_count": len(active),
             "total_count": total_count,
             "unique_count": len(fps),

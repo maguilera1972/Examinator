@@ -33,7 +33,7 @@ from app.data.vendor_catalog import (
 )
 from app.models.models import CertificationFamily, Exam, ImportLog, Section
 from app.services.import_service import ensure_exam_question_sources
-from app.services.learn_retirement_service import LEARN_RETIRED_SOURCE
+from app.services.learn_retirement_service import LEARN_RETIRED_SOURCE, SYNC_ADDED_PREFIX, ignored_exam_codes
 from app.services.learn_skills_service import apply_official_sections
 
 USER_AGENT = "Examinator/1.0 (+https://learn.microsoft.com/en-us/credentials/)"
@@ -179,12 +179,14 @@ def _upsert_comptia_exam(db: Session, code: str, meta: dict, family: Certificati
     return exam
 
 
-def _sync_comptia_catalog(db: Session) -> int:
+def _sync_comptia_catalog(db: Session, skip: set[str] = frozenset()) -> int:
     families_by_code = {}
     for fmeta in COMPTIA_FAMILY_DEFINITIONS:
         families_by_code[fmeta["code"]] = _upsert_family(db, {**fmeta, "hub_url": "https://www.comptia.org/certifications"})
     synced = 0
     for code, meta in COMPTIA_EXAM_CATALOG.items():
+        if code in skip:
+            continue
         family = families_by_code.get(meta["family_code"])
         if not family:
             continue
@@ -227,12 +229,14 @@ def _upsert_topic_exam(db: Session, code: str, meta: dict, family: Certification
     return exam
 
 
-def _sync_topic_catalog(db: Session) -> int:
+def _sync_topic_catalog(db: Session, skip: set[str] = frozenset()) -> int:
     families_by_code = {}
     for fmeta in TOPIC_FAMILY_DEFINITIONS:
         families_by_code[fmeta["code"]] = _upsert_family(db, {**fmeta, "hub_url": "/catalog/topics"})
     synced = 0
     for code, meta in TOPIC_EXAM_CATALOG.items():
+        if code in skip:
+            continue
         family = families_by_code.get(meta["family_code"])
         if not family:
             continue
@@ -271,9 +275,11 @@ def sync_credentials_catalog(db: Session, enrich_learn: bool = True) -> ImportLo
             Exam.is_active.is_(False),
         ).all()
     }
+    ignored = ignored_exam_codes(db)
+    existing_codes = {row[0] for row in db.query(Exam.code).all()}
 
     synced = 0
-    for code in sorted(all_codes - retired_codes):
+    for code in sorted(all_codes - retired_codes - ignored):
         prefix = family_code_for_exam(code)
         family = families_by_code.get(prefix)
         if not family:
@@ -281,15 +287,17 @@ def sync_credentials_catalog(db: Session, enrich_learn: bool = True) -> ImportLo
         _upsert_exam(db, code, family, enrich_learn=enrich_learn)
         synced += 1
 
-    comptia_synced = _sync_comptia_catalog(db)
-    topic_synced = _sync_topic_catalog(db)
+    comptia_synced = _sync_comptia_catalog(db, skip=ignored)
+    topic_synced = _sync_topic_catalog(db, skip=ignored)
 
     db.commit()
+    added = sorted({row[0] for row in db.query(Exam.code).all()} - existing_codes)
     msg = (
         f"Synced {len(families_by_code)} Microsoft families and {synced} Microsoft exams; "
         f"{len(COMPTIA_FAMILY_DEFINITIONS)} CompTIA families and {comptia_synced} CompTIA exams; "
         f"{len(TOPIC_FAMILY_DEFINITIONS)} topic tracks and {topic_synced} custom simulations."
     )
+    msg += f" {SYNC_ADDED_PREFIX}{len(added)}): {', '.join(added) or '-'}."
     if poster_err:
         msg += f" Poster fetch note: {poster_err}"
     log = ImportLog(source="credentials_sync", message=msg, status="success" if not poster_err else "partial")

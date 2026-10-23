@@ -227,6 +227,19 @@ class ImportLog(Base):
     message = Column(Text, default="")
     created_at = Column(DateTime, default=datetime.utcnow)
 
+class IgnoredExamCode(Base):
+    """Exam codes permanently removed by an admin; catalog syncs must not re-create them."""
+
+    __tablename__ = "ignored_exam_codes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    code = Column(String(20), unique=True, nullable=False, index=True)
+    vendor = Column(String(100), default="")
+    name = Column(String(255), default="")
+    reason = Column(String(100), default="")
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 class UserExamAccess(Base):
     __tablename__ = "user_exam_access"
 

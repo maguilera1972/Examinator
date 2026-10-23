@@ -17,8 +17,15 @@ from app.services.learn_retirement_service import (
     STATUS_RETIRED,
     STATUS_RETIRING,
     analyze_microsoft_retirements,
+    delete_all_retired_exams,
+    delete_retired_exam,
+    get_last_sync_summary,
+    list_ignored_codes,
+    list_inactive_exams,
     prune_retired_microsoft_exams,
+    reactivate_exam,
     retire_exams,
+    unignore_code,
 )
 from app.services.learn_skills_service import apply_official_sections
 from app.services.excel_import_service import (
@@ -113,7 +120,60 @@ def admin_dashboard(request: Request, db: Session = Depends(get_db)):
         "users_report": users_report,
         "pending_users": pending_users,
         "families": families,
+        "sync_summary": get_last_sync_summary(db),
+        "inactive_exams": list_inactive_exams(db),
+        "ignored_codes": list_ignored_codes(db),
     }, user=admin)
+
+
+@router.post("/exams/{exam_id}/reactivate")
+def admin_reactivate_exam(exam_id: int, request: Request, db: Session = Depends(get_db)):
+    _, redirect = _admin_or_redirect(request, db)
+    if redirect:
+        return redirect
+    try:
+        exam = reactivate_exam(db, exam_id)
+    except ValueError as exc:
+        return _admin_redirect(error=str(exc), section="pools")
+    return _admin_redirect(ok=f"Examen {exam.code} réactivé", section="pools")
+
+
+@router.post("/exams/{exam_id}/delete-retired")
+def admin_delete_retired_exam(exam_id: int, request: Request, db: Session = Depends(get_db)):
+    _, redirect = _admin_or_redirect(request, db)
+    if redirect:
+        return redirect
+    try:
+        code = delete_retired_exam(db, exam_id)
+    except ValueError as exc:
+        return _admin_redirect(error=str(exc), section="pools")
+    return _admin_redirect(ok=f"Examen {code} supprimé définitivement", section="pools")
+
+
+@router.post("/maintenance/delete-retired")
+def admin_delete_all_retired_exams(request: Request, db: Session = Depends(get_db)):
+    _, redirect = _admin_or_redirect(request, db)
+    if redirect:
+        return redirect
+    codes = delete_all_retired_exams(db)
+    if not codes:
+        return _admin_redirect(error="Aucun examen retiré à supprimer", section="pools")
+    return _admin_redirect(
+        ok=f"{len(codes)} examen(s) retiré(s) supprimé(s) définitivement : {', '.join(codes)}",
+        section="pools",
+    )
+
+
+@router.post("/maintenance/ignored/{ignored_id}/delete")
+def admin_unignore_code(ignored_id: int, request: Request, db: Session = Depends(get_db)):
+    _, redirect = _admin_or_redirect(request, db)
+    if redirect:
+        return redirect
+    try:
+        code = unignore_code(db, ignored_id)
+    except ValueError as exc:
+        return _admin_redirect(error=str(exc), section="pools")
+    return _admin_redirect(ok=f"{code} sera de nouveau pris en compte par la synchronisation", section="pools")
 
 
 @router.post("/exams")

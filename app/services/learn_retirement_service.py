@@ -11,10 +11,13 @@ from sqlalchemy.orm import Session
 
 from app.data.certification_catalog import LEARN_SLUGS, learn_url_for_slug
 from app.data.vendor_catalog import MICROSOFT_VENDOR
-from app.models.models import Exam, ExamSession, ImportLog, Question
+from app.models.models import Exam, ExamSession, IgnoredExamCode, ImportLog, Question
 
 LEARN_EXAM_URL = "https://learn.microsoft.com/en-us/credentials/certifications/exams/{slug}/"
 LEARN_RETIRED_SOURCE = "learn_retired"
+SYNC_ADDED_PREFIX = "Added ("
+RETIRED_LOG_PREFIX = "Retired from catalog ("
+DELETED_LOG_PREFIX = "Deleted permanently ("
 ADMIN_CUSTOM_SOURCE = "admin_custom"  # same value as exam_admin_service.ADMIN_CUSTOM_SOURCE
 USER_AGENT = "Examinator/1.0 (+https://learn.microsoft.com/en-us/credentials/)"
 
@@ -194,7 +197,7 @@ def retire_exams(db: Session, exam_ids: list[int], statuses: dict[str, LearnExam
     if exams:
         db.add(ImportLog(
             source="learn_retirement",
-            message=f"Retired from catalog ({len(exams)}): " + ", ".join(details),
+            message=f"{RETIRED_LOG_PREFIX}{len(exams)}): " + ", ".join(details),
             status="success",
         ))
     db.commit()
@@ -211,3 +214,133 @@ def prune_retired_microsoft_exams(db: Session) -> dict:
         "not_found": sorted(c for c, s in statuses.items() if s.status == STATUS_NOT_FOUND),
         "unknown": sorted(c for c, s in statuses.items() if s.status == STATUS_UNKNOWN),
     }
+
+
+def ignored_exam_codes(db: Session) -> set[str]:
+    return {row[0] for row in db.query(IgnoredExamCode.code).all()}
+
+
+def _codes_after_prefix(message: str, prefix: str) -> list[str]:
+    match = re.search(re.escape(prefix) + r"\d+\):\s*([^.]*)", message or "")
+    if not match:
+        return []
+    return [c.strip() for c in match.group(1).split(",") if c.strip() and c.strip() != "-"]
+
+
+def get_last_sync_summary(db: Session) -> dict | None:
+    sync_log = (
+        db.query(ImportLog)
+        .filter(ImportLog.source == "credentials_sync")
+        .order_by(ImportLog.created_at.desc())
+        .first()
+    )
+    if not sync_log:
+        return None
+    later = (
+        db.query(ImportLog)
+        .filter(
+            ImportLog.source.in_(["learn_retirement", "retired_exam_delete"]),
+            ImportLog.created_at >= sync_log.created_at,
+        )
+        .order_by(ImportLog.created_at)
+        .all()
+    )
+    retired, deleted = [], []
+    for log in later:
+        retired += _codes_after_prefix(log.message, RETIRED_LOG_PREFIX)
+        deleted += _codes_after_prefix(log.message, DELETED_LOG_PREFIX)
+    return {
+        "date": sync_log.created_at,
+        "status": sync_log.status,
+        "added": _codes_after_prefix(sync_log.message, SYNC_ADDED_PREFIX),
+        "retired": retired,
+        "deleted": deleted,
+    }
+
+
+def list_inactive_exams(db: Session) -> list[dict]:
+    vendor_rank = {MICROSOFT_VENDOR: 0, "CompTIA": 1, "Examinator": 2}
+    exams = db.query(Exam).filter(Exam.is_active.is_(False)).all()
+    exams.sort(key=lambda e: (vendor_rank.get(e.vendor, 9), e.vendor or "", e.code))
+    rows = []
+    for exam in exams:
+        is_custom = exam.external_source == ADMIN_CUSTOM_SOURCE
+        rows.append({
+            "exam": exam,
+            "reason": "Retiré (Learn)" if exam.external_source == LEARN_RETIRED_SOURCE
+            else "Custom inactif" if is_custom else "Inactif",
+            "question_count": db.query(Question).filter(Question.exam_id == exam.id).count(),
+            "session_count": db.query(ExamSession).filter(ExamSession.exam_id == exam.id).count(),
+            "bulk_deletable": not is_custom,
+        })
+    return rows
+
+
+def reactivate_exam(db: Session, exam_id: int) -> Exam:
+    exam = db.query(Exam).filter(Exam.id == exam_id).first()
+    if not exam:
+        raise ValueError("Examen introuvable")
+    exam.is_active = True
+    if exam.external_source == LEARN_RETIRED_SOURCE:
+        exam.external_source = ""
+    exam.updated_at = datetime.utcnow()
+    db.commit()
+    return exam
+
+
+def _delete_inactive_exam(db: Session, exam: Exam) -> str:
+    from app.services.exam_admin_service import delete_exam
+
+    if exam.is_active:
+        raise ValueError(f"{exam.code} est encore actif : retirez-le avant de le supprimer")
+    if exam.external_source != ADMIN_CUSTOM_SOURCE and not db.query(IgnoredExamCode).filter(IgnoredExamCode.code == exam.code).first():
+        db.add(IgnoredExamCode(
+            code=exam.code,
+            vendor=exam.vendor or "",
+            name=exam.name or "",
+            reason="learn_retired" if exam.external_source == LEARN_RETIRED_SOURCE else "inactive",
+        ))
+        db.flush()
+    return delete_exam(db, exam.id)
+
+
+def _log_deleted(db: Session, codes: list[str]) -> None:
+    if codes:
+        db.add(ImportLog(
+            source="retired_exam_delete",
+            message=f"{DELETED_LOG_PREFIX}{len(codes)}): {', '.join(codes)}",
+            status="success",
+        ))
+        db.commit()
+
+
+def delete_retired_exam(db: Session, exam_id: int) -> str:
+    exam = db.query(Exam).filter(Exam.id == exam_id).first()
+    if not exam:
+        raise ValueError("Examen introuvable")
+    code = _delete_inactive_exam(db, exam)
+    _log_deleted(db, [code])
+    return code
+
+
+def delete_all_retired_exams(db: Session) -> list[str]:
+    codes = []
+    for row in list_inactive_exams(db):
+        if row["bulk_deletable"]:
+            codes.append(_delete_inactive_exam(db, row["exam"]))
+    _log_deleted(db, codes)
+    return codes
+
+
+def list_ignored_codes(db: Session) -> list[IgnoredExamCode]:
+    return db.query(IgnoredExamCode).order_by(IgnoredExamCode.code).all()
+
+
+def unignore_code(db: Session, ignored_id: int) -> str:
+    row = db.query(IgnoredExamCode).filter(IgnoredExamCode.id == ignored_id).first()
+    if not row:
+        raise ValueError("Code introuvable")
+    code = row.code
+    db.delete(row)
+    db.commit()
+    return code
