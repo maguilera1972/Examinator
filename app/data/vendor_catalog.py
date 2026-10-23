@@ -209,15 +209,6 @@ COMPTIA_EXAM_CATALOG = {
         "overview": "Project basics, constraints, communication, tools, and change management.",
         "learn_url": "https://www.comptia.org/en-us/certifications/project/",
     },
-    "CS0-003": {
-        "family_code": "CYB",
-        "name": "CompTIA CySA+ (V3, retiring December 2026)",
-        "level": "Associate",
-        "duration": 165,
-        "passing": 750,
-        "overview": "Security analytics, intrusion detection, and response in enterprise environments.",
-        "learn_url": "https://www.comptia.org/en-us/certifications/cybersecurity-analyst/v3/",
-    },
     "CS0-004": {
         "family_code": "CYB",
         "name": "CompTIA CySA+ (V4)",
