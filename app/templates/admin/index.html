@@ -226,7 +226,7 @@
         <div class="admin-exam-block" data-filter-text="{{ exam.code }} {{ exam.name }} {{ exam.vendor }} {% if exam.family %}{{ exam.family.code }} {{ exam.family.name }}{% endif %} {% if exam.external_source == 'admin_custom' %}custom{% endif %}">
           <div class="admin-exam-header">
             <div>
-              <h3>{{ exam.code }} — {{ exam.name }}{% if not exam.is_active %} <span class="admin-badge" style="background:var(--danger);">Inactif</span>{% endif %}{% if exam.external_source == 'admin_custom' %} <span class="admin-badge">Custom</span>{% endif %}</h3>
+              <h3>{{ exam.code }} — {{ exam.name }}{% if not exam.is_active %} <span class="admin-badge" style="background:var(--danger);">{{ 'Retiré (Learn)' if exam.external_source == 'learn_retired' else 'Inactif' }}</span>{% endif %}{% if exam.external_source == 'admin_custom' %} <span class="admin-badge">Custom</span>{% endif %}</h3>
               <p style="color:var(--muted);font-size:0.85rem;margin:0;">
                 {{ exam.vendor }}{% if exam.family %} · {{ exam.family.code }} — {{ exam.family.name }}{% endif %}
                 · {{ exam.duration_minutes }} min
@@ -380,11 +380,13 @@
       <h2>Synchronisation Microsoft Learn</h2>
       <p style="color:var(--muted);font-size:0.95rem;margin-bottom:1rem;max-width:720px;">
         Met à jour les familles, fiches examens et pondérations (skills measured) depuis Microsoft Learn.
-        Les examens <strong>custom</strong> créés manuellement ne sont pas désactivés.
+        La synchronisation peut aussi retirer du catalogue les examens retirés ou remplacés par Microsoft.
+        Les examens <strong>custom</strong> créés manuellement ne sont jamais retirés.
       </p>
       <div class="admin-sync-actions">
         <a href="/admin/sync/microsoft" class="btn btn-primary">Synchroniser tout le catalogue Microsoft</a>
         <a href="/admin/sync/sections" class="btn btn-secondary">Mettre à jour les pondérations uniquement</a>
+        <a href="/admin/sync/retired" class="btn btn-secondary">Analyser les examens retirés ou remplacés</a>
       </div>
     </section>
 

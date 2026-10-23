@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Examens retirés ou remplacés — Examinator{% endblock %}
+{% block content %}
+<div class="container" style="padding:2rem 1.5rem 3rem;">
+  <a href="/admin?section=sync" style="color:var(--muted);font-size:0.9rem;">← Retour à l'administration</a>
+  <h1 style="margin:1rem 0 0.5rem;">Examens retirés ou remplacés</h1>
+  <p style="color:var(--muted);margin-bottom:1.5rem;max-width:760px;">
+    {{ checked_count }} examen(s) Microsoft vérifié(s) sur Microsoft Learn, dont {{ active_count }} toujours valide(s).
+    Les examens sélectionnés sont retirés du catalogue et des listes d’accès ; les résultats déjà obtenus restent consultables.
+    Un examen retiré peut être réactivé depuis sa fiche (case « Actif »).
+  </p>
+
+  {% if rows %}
+  <form method="post" action="/admin/sync/retired" class="info-panel">
+    <table class="history-table admin-retired-table">
+      <thead>
+        <tr><th></th><th>Examen</th><th>Statut Learn</th><th>Date de retrait</th><th>Remplacé par</th><th>Questions</th><th>Sessions</th></tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        {% set st = r.status %}
+        <tr>
+          <td>
+            {% if st.status in (STATUS_RETIRED, STATUS_NOT_FOUND) %}
+            <input type="checkbox" name="exam_ids" value="{{ r.exam.id }}"{% if st.status == STATUS_RETIRED %} checked{% endif %} aria-label="Retirer {{ r.exam.code }}">
+            {% endif %}
+          </td>
+          <td><strong>{{ r.exam.code }}</strong> — {{ r.exam.name }}</td>
+          <td>
+            <span class="retire-status retire-status-{{ st.status }}">{{ st.label }}</span>
+            {% if st.url %}<a href="{{ st.url }}" target="_blank" rel="noopener" style="font-size:0.8rem;margin-left:0.35rem;">Learn ↗</a>{% endif %}
+            {% if st.note %}<br><small style="color:var(--muted);">{{ st.note }}</small>{% endif %}
+          </td>
+          <td>{{ st.retirement_date.strftime('%d.%m.%Y') if st.retirement_date else '—' }}</td>
+          <td>
+            {% if st.replacement_code %}
+            <strong>{{ st.replacement_code }}</strong>{% if not r.replacement_in_catalog %} <small style="color:var(--muted);">(absent du catalogue)</small>{% endif %}
+            {% else %}—{% endif %}
+          </td>
+          <td>{{ r.question_count }}</td>
+          <td>{{ r.session_count }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <p style="color:var(--muted);font-size:0.85rem;margin:1rem 0;">
+      « Retiré » : Microsoft indique explicitement le retrait (coché par défaut).
+      « Introuvable sur Learn » : aucune page d’examen trouvée — examen bêta, code erroné ou entrée de test ; à vérifier avant de retirer.
+      « Retrait planifié » : encore valide, affiché pour information.
+    </p>
+    <button type="submit" class="btn btn-primary" onclick="return confirm('Retirer du catalogue les examens sélectionnés ?');">Retirer la sélection du catalogue</button>
+    <a href="/admin?section=sync" class="btn btn-secondary" style="margin-left:0.5rem;">Annuler</a>
+  </form>
+  {% else %}
+  <div class="info-panel"><p>Tous les examens Microsoft du catalogue sont valides sur Microsoft Learn.</p></div>
+  {% endif %}
+</div>
+{% endblock %}

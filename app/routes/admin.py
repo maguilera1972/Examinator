@@ -11,6 +11,15 @@ from app.services.auth import is_admin, require_admin
 from app.services.gravatar import gravatar_url
 from app.services.exam_catalog import SOURCE_LABELS, get_question_pool_stats
 from app.services.credentials_sync_service import sync_credentials_catalog
+from app.services.learn_retirement_service import (
+    STATUS_ACTIVE,
+    STATUS_NOT_FOUND,
+    STATUS_RETIRED,
+    STATUS_RETIRING,
+    analyze_microsoft_retirements,
+    prune_retired_microsoft_exams,
+    retire_exams,
+)
 from app.services.learn_skills_service import apply_official_sections
 from app.services.excel_import_service import (
     build_question_bank_workbook,
@@ -358,7 +367,48 @@ def admin_sync_microsoft_confirm(request: Request, db: Session = Depends(get_db)
         ),
         "action": "/admin/maintenance/sync-credentials",
         "button_label": "Lancer la synchronisation complète",
+        "options": [{
+            "name": "prune_retired",
+            "label": "Retirer aussi du catalogue les examens retirés ou remplacés",
+            "help": (
+                "Vérifie chaque examen Microsoft sur Microsoft Learn. Seuls les examens explicitement "
+                "indiqués comme retirés sont retirés du catalogue ; l’historique des résultats est conservé. "
+                "Les examens introuvables sur Learn sont seulement signalés (voir « Analyser les examens retirés »)."
+            ),
+            "checked": True,
+        }],
     }, user=admin)
+
+
+@router.get("/sync/retired", response_class=HTMLResponse)
+def admin_retired_exams_review(request: Request, db: Session = Depends(get_db)):
+    admin, redirect = _admin_or_redirect(request, db)
+    if redirect:
+        return redirect
+    rows = analyze_microsoft_retirements(db)
+    flagged = [r for r in rows if r["status"].status != STATUS_ACTIVE]
+    return render(request, "admin/retired_exams.html", {
+        "rows": flagged,
+        "checked_count": len(rows),
+        "active_count": len(rows) - len(flagged),
+        "STATUS_RETIRED": STATUS_RETIRED,
+        "STATUS_NOT_FOUND": STATUS_NOT_FOUND,
+        "STATUS_RETIRING": STATUS_RETIRING,
+    }, user=admin)
+
+
+@router.post("/sync/retired")
+async def admin_retire_exams(request: Request, db: Session = Depends(get_db)):
+    _, redirect = _admin_or_redirect(request, db)
+    if redirect:
+        return redirect
+    form = await request.form()
+    exam_ids = [int(v) for v in form.getlist("exam_ids")]
+    if not exam_ids:
+        return _admin_redirect(error="Aucun examen sélectionné", section="sync")
+    retired = retire_exams(db, exam_ids)
+    codes = ", ".join(e.code for e in retired)
+    return _admin_redirect(ok=f"{len(retired)} examen(s) retiré(s) du catalogue : {codes}", section="sync")
 
 
 @router.get("/sync/sections", response_class=HTMLResponse)
@@ -412,13 +462,23 @@ def admin_sync_exam_sections(request: Request, db: Session = Depends(get_db)):
 
 
 @router.post("/maintenance/sync-credentials")
-def admin_sync_credentials(request: Request, db: Session = Depends(get_db)):
+async def admin_sync_credentials(request: Request, db: Session = Depends(get_db)):
     _, redirect = _admin_or_redirect(request, db)
     if redirect:
         return redirect
 
+    form = await request.form()
     sync_credentials_catalog(db)
-    return _admin_redirect(ok="Catalogue Microsoft synchronisé", section="sync")
+    ok = "Catalogue Microsoft synchronisé"
+    if form.get("prune_retired") == "1":
+        pruned = prune_retired_microsoft_exams(db)
+        if pruned["retired"]:
+            ok += f" — {len(pruned['retired'])} examen(s) retiré(s) du catalogue : {', '.join(pruned['retired'])}"
+        else:
+            ok += " — aucun examen retiré détecté"
+        if pruned["not_found"]:
+            ok += f". Introuvables sur Learn (à vérifier) : {', '.join(pruned['not_found'])}"
+    return _admin_redirect(ok=ok, section="sync")
 
 
 @router.post("/maintenance/sync-microsoft")

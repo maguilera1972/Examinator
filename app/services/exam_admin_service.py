@@ -12,6 +12,7 @@ from app.models.models import (
     Question,
     Section,
 )
+from app.services.learn_retirement_service import LEARN_RETIRED_SOURCE
 
 ADMIN_CUSTOM_SOURCE = "admin_custom"
 
@@ -256,6 +257,8 @@ def update_exam(
     exam.product = product.strip()
     exam.learn_url = learn_url.strip()
     exam.is_active = is_active
+    if is_active and exam.external_source == LEARN_RETIRED_SOURCE:
+        exam.external_source = ""
     exam.updated_at = datetime.utcnow()
     db.commit()
     db.refresh(exam)

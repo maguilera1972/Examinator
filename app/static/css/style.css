@@ -1925,6 +1925,32 @@ body.no-sidebar .main-content { max-width: none; padding: 1rem; }
 }
 .admin-full-access-box p { color: var(--muted); font-size: 0.88rem; margin: 0.25rem 0 0; }
 
+.admin-sync-option {
+  display: flex;
+  gap: 0.65rem;
+  align-items: flex-start;
+  margin-bottom: 1.25rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+}
+.admin-sync-option input { margin-top: 0.25rem; }
+.admin-sync-option small { display: block; color: var(--muted); font-size: 0.85rem; margin-top: 0.3rem; line-height: 1.45; }
+
+.admin-retired-table td { vertical-align: top; }
+.retire-status {
+  display: inline-block;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+.retire-status-retired { background: rgba(248, 113, 113, 0.15); color: var(--danger); }
+.retire-status-not_found { background: rgba(251, 191, 36, 0.2); color: var(--warning); }
+.retire-status-retiring { background: rgba(96, 165, 250, 0.15); color: var(--accent, #60a5fa); }
+.retire-status-unknown { background: var(--surface2); color: var(--muted); }
+
 .help-ui-note {
   border-left: 3px solid var(--accent, #2b6cb0);
   margin-bottom: 1.25rem;

@@ -33,6 +33,7 @@ from app.data.vendor_catalog import (
 )
 from app.models.models import CertificationFamily, Exam, ImportLog, Section
 from app.services.import_service import ensure_exam_question_sources
+from app.services.learn_retirement_service import LEARN_RETIRED_SOURCE
 from app.services.learn_skills_service import apply_official_sections
 
 USER_AGENT = "Examinator/1.0 (+https://learn.microsoft.com/en-us/credentials/)"
@@ -263,9 +264,16 @@ def sync_credentials_catalog(db: Session, enrich_learn: bool = True) -> ImportLo
     all_codes = set(poster_codes)
     all_codes.update(EXAM_CATALOG.keys())
     all_codes.update(EXAM_NAMES.keys())
+    retired_codes = {
+        row[0]
+        for row in db.query(Exam.code).filter(
+            Exam.external_source == LEARN_RETIRED_SOURCE,
+            Exam.is_active.is_(False),
+        ).all()
+    }
 
     synced = 0
-    for code in sorted(all_codes):
+    for code in sorted(all_codes - retired_codes):
         prefix = family_code_for_exam(code)
         family = families_by_code.get(prefix)
         if not family:

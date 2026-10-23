@@ -291,6 +291,7 @@ QUESTIONS_PER_SESSION=50
 | `import_service.py` | Import JSON, sync métadonnées Microsoft, stubs externes |
 | `excel_import_service.py` | Templates et import `.xlsx` |
 | `credentials_sync_service.py` | Sync familles/examens (poster PDF + catalogues) |
+| `learn_retirement_service.py` | Détection des examens Microsoft retirés / remplacés sur Learn et retrait du catalogue |
 | `learn_skills_service.py` | Scraping poids Skills Measured (Microsoft Learn) |
 | `question_quality.py` | Fingerprints, dédoublonnage, rapport qualité |
 | `user_manual_service.py` | Manuels PDF multilingues (`MANUAL_VERSION`) |
@@ -336,6 +337,8 @@ Static : `GET /static/...` → `app/static/`.
 Tableau de bord, CRUD examens, imports JSON/Excel, sync Microsoft / sections / credentials, gestion utilisateurs (approve / reject / access / delete), consultation et export des résultats d’autres utilisateurs.
 
 Accès réservé à l’e-mail `ADMIN_EMAIL`.
+
+**Examens retirés ou remplacés (Microsoft Learn)** — `GET /admin/sync/retired` analyse chaque examen Microsoft actif (hors `admin_custom`) via sa page Learn (`/credentials/certifications/exams/{code}/`, repli sur la page certification) : statut *retiré* (meta `retirementDate` passée ou bandeau « This exam/certification … retired »), *retrait planifié*, *introuvable* ou *valide*, avec l’examen de remplacement lorsque Learn l’indique. `POST /admin/sync/retired` retire la sélection : `is_active=False`, `external_source=learn_retired` (l’historique des sessions est conservé, la sync ne le réactive plus). L’option « Retirer aussi du catalogue… » de la synchronisation complète retire automatiquement les seuls examens explicitement retirés. Réactiver un examen depuis sa fiche efface le marqueur `learn_retired`.
 
 ### 10.3 API (`prefix=/api`)
 

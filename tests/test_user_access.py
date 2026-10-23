@@ -104,7 +104,11 @@ def test_approve_user_with_full_access_includes_future_exams():
         if u:
             db.query(UserExamAccess).filter(UserExamAccess.user_id == u.id).delete()
             db.delete(u)
-        db.query(Exam).filter(Exam.code == "TST-FA2").delete()
+        for code in ("TST-FA1", "TST-FA2"):
+            exam = db.query(Exam).filter(Exam.code == code).first()
+            if exam:
+                db.query(UserExamAccess).filter(UserExamAccess.exam_id == exam.id).delete()
+                db.delete(exam)
         db.commit()
         db.close()
 
